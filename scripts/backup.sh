@@ -50,7 +50,7 @@ print_status "Creating backup of D&D campaign data..."
 
 # Create database backup
 print_status "Backing up MongoDB database..."
-docker-compose exec -T mongodb mongodump \
+$DOCKER_COMPOSE_CMD exec -T mongodb mongodump \
     --username $MONGO_USER \
     --password $MONGO_PASS \
     --authenticationDatabase admin \
@@ -58,10 +58,10 @@ docker-compose exec -T mongodb mongodump \
     --out /tmp/backup_$TIMESTAMP
 
 # Copy backup from container to host
-docker-compose exec -T mongodb tar -czf /tmp/backup_$TIMESTAMP.tar.gz -C /tmp backup_$TIMESTAMP
+$DOCKER_COMPOSE_CMD exec -T mongodb tar -czf /tmp/backup_$TIMESTAMP.tar.gz -C /tmp backup_$TIMESTAMP
 
 # Copy to host
-docker cp $(docker-compose ps -q mongodb):/tmp/backup_$TIMESTAMP.tar.gz $BACKUP_DIR/
+docker cp $($DOCKER_COMPOSE_CMD ps -q mongodb):/tmp/backup_$TIMESTAMP.tar.gz $BACKUP_DIR/
 
 print_success "Database backup saved: $BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
 
