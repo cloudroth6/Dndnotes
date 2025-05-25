@@ -13,6 +13,8 @@ from datetime import datetime, date
 import secrets
 import re
 import json
+import aiohttp
+import asyncio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -48,6 +50,42 @@ def json_serializer(obj):
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+# Admin Configuration Models
+class OllamaConfig(BaseModel):
+    enabled: bool = False
+    host: str = "http://localhost:11434"
+    model: str = "llama2"
+    timeout: int = 60
+    temperature: float = 0.7
+
+class NPCExtractionPrompt(BaseModel):
+    prompt_text: str = """
+You are an expert D&D game master assistant. Analyze the following game session text and extract ALL Non-Player Characters (NPCs) mentioned.
+
+For each NPC found, provide a JSON object with these fields:
+- name: The NPC's full name
+- description: Physical description if mentioned
+- race: Race/species if mentioned
+- class_role: Class, profession, or role if mentioned
+- location: Where they were encountered
+- personality_traits: Personality, quirks, or mannerisms observed
+- interactions: What happened with this NPC in this session
+- relationships: Relationships to other NPCs or party members mentioned
+- loot_given: Any items, rewards, or loot provided by this NPC
+- status: alive/deceased/unknown
+- significance: How important this NPC seems to the story
+- additional_notes: Any other relevant information
+
+Return ONLY a JSON array of NPC objects. If no NPCs are found, return an empty array [].
+
+Session Text:
+{session_text}
+"""
+
+class AdminConfig(BaseModel):
+    ollama_config: OllamaConfig = Field(default_factory=OllamaConfig)
+    npc_extraction_prompt: NPCExtractionPrompt = Field(default_factory=NPCExtractionPrompt)
 
 # Enhanced Pydantic Models for Structured Sessions
 class CombatEncounter(BaseModel):
@@ -121,7 +159,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-# NPC Models (keeping existing structure)
+# Enhanced NPC Models
 class NPCCreate(BaseModel):
     name: str
     status: str = "Unknown"
@@ -131,6 +169,10 @@ class NPCCreate(BaseModel):
     quirks_mannerisms: str = ""
     background: str = ""
     notes: str = ""
+    location: str = ""
+    personality_traits: str = ""
+    relationships: str = ""
+    significance: str = ""
 
 class NPCUpdate(BaseModel):
     name: Optional[str] = None
@@ -141,6 +183,10 @@ class NPCUpdate(BaseModel):
     quirks_mannerisms: Optional[str] = None
     background: Optional[str] = None
     notes: Optional[str] = None
+    location: Optional[str] = None
+    personality_traits: Optional[str] = None
+    relationships: Optional[str] = None
+    significance: Optional[str] = None
 
 class NPC(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -152,6 +198,10 @@ class NPC(BaseModel):
     quirks_mannerisms: str = ""
     background: str = ""
     notes: str = ""
+    location: str = ""
+    personality_traits: str = ""
+    relationships: str = ""
+    significance: str = ""
     history: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -161,27 +211,140 @@ class NPCExtraction(BaseModel):
     extracted_text: str
     npc_name: str
 
-# Ollama LLM Placeholder Class
+# Advanced NPC Extraction Models
+class NPCExtractionRequest(BaseModel):
+    session_text: str
+    session_id: str
+    use_ollama: bool = False
+
+class ExtractedNPCData(BaseModel):
+    name: str
+    description: str = ""
+    race: str = ""
+    class_role: str = ""
+    location: str = ""
+    personality_traits: str = ""
+    interactions: str = ""
+    relationships: str = ""
+    loot_given: str = ""
+    status: str = "alive"
+    significance: str = ""
+    additional_notes: str = ""
+
+# Enhanced Ollama LLM Service
 class OllamaLLMService:
     """
-    Placeholder class for Ollama LLM integration.
-    Currently uses rule-based logic, but designed to be easily replaced
-    with actual Ollama API calls.
+    Enhanced Ollama LLM integration for advanced NPC extraction and management.
     """
     
     def __init__(self):
-        self.enabled = False  # Set to True when Ollama is configured
+        self.enabled = os.environ.get('OLLAMA_ENABLED', 'false').lower() == 'true'
+        self.host = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+        self.model = os.environ.get('OLLAMA_MODEL', 'llama2')
+        self.timeout = int(os.environ.get('OLLAMA_TIMEOUT', 60))
+        self.temperature = float(os.environ.get('OLLAMA_TEMPERATURE', 0.7))
         
-    async def extract_npcs_from_text(self, text: str) -> List[str]:
-        """
-        Placeholder for NPC extraction using LLM.
-        Currently uses simple pattern matching.
-        """
-        if self.enabled:
-            # TODO: Implement actual Ollama API call
-            pass
+    async def get_config(self) -> OllamaConfig:
+        """Get current Ollama configuration"""
+        return OllamaConfig(
+            enabled=self.enabled,
+            host=self.host,
+            model=self.model,
+            timeout=self.timeout,
+            temperature=self.temperature
+        )
+    
+    async def update_config(self, config: OllamaConfig):
+        """Update Ollama configuration"""
+        self.enabled = config.enabled
+        self.host = config.host
+        self.model = config.model
+        self.timeout = config.timeout
+        self.temperature = config.temperature
+    
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test connection to Ollama service"""
+        if not self.enabled:
+            return {"status": "disabled", "message": "Ollama is disabled"}
         
-        # Simple rule-based extraction for now
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with session.get(f"{self.host}/api/tags") as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        models = [model['name'] for model in data.get('models', [])]
+                        return {
+                            "status": "connected",
+                            "message": "Successfully connected to Ollama",
+                            "available_models": models
+                        }
+                    else:
+                        return {
+                            "status": "error",
+                            "message": f"Ollama responded with status {response.status}"
+                        }
+        except Exception as e:
+            return {
+                "status": "error", 
+                "message": f"Failed to connect to Ollama: {str(e)}"
+            }
+    
+    async def extract_npcs_advanced(self, session_text: str, custom_prompt: str = None) -> List[ExtractedNPCData]:
+        """
+        Advanced NPC extraction using Ollama LLM with custom prompts
+        """
+        if not self.enabled:
+            # Fallback to rule-based extraction
+            return await self.extract_npcs_fallback(session_text)
+        
+        try:
+            # Get admin config for prompt
+            admin_config = await self.get_admin_config()
+            prompt_template = custom_prompt or admin_config.npc_extraction_prompt.prompt_text
+            
+            # Format prompt with session text
+            formatted_prompt = prompt_template.format(session_text=session_text)
+            
+            # Call Ollama API
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+                payload = {
+                    "model": self.model,
+                    "prompt": formatted_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.temperature
+                    }
+                }
+                
+                async with session.post(f"{self.host}/api/generate", json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        response_text = result.get('response', '')
+                        
+                        # Parse JSON response
+                        try:
+                            npcs_data = json.loads(response_text)
+                            if isinstance(npcs_data, list):
+                                return [ExtractedNPCData(**npc) for npc in npcs_data if isinstance(npc, dict)]
+                            else:
+                                logger.warning(f"Unexpected response format from Ollama: {response_text}")
+                                return []
+                        except json.JSONDecodeError:
+                            logger.error(f"Failed to parse JSON from Ollama response: {response_text}")
+                            return []
+                    else:
+                        logger.error(f"Ollama API error: {response.status}")
+                        return []
+                        
+        except Exception as e:
+            logger.error(f"Error calling Ollama API: {str(e)}")
+            # Fallback to rule-based extraction
+            return await self.extract_npcs_fallback(session_text)
+    
+    async def extract_npcs_fallback(self, session_text: str) -> List[ExtractedNPCData]:
+        """
+        Fallback rule-based NPC extraction when Ollama is unavailable
+        """
         patterns = [
             r'\b([A-Z][a-z]+ (?:the )?[A-Z][a-z]+)\b',  # "Thorin the Blacksmith"
             r'\b([A-Z][a-z]+ [A-Z][a-z]+)\b',           # "John Smith"
@@ -190,12 +353,37 @@ class OllamaLLMService:
         
         extracted_names = []
         for pattern in patterns:
-            matches = re.findall(pattern, text)
+            matches = re.findall(pattern, session_text)
             extracted_names.extend(matches)
         
         # Remove duplicates and common words
         common_words = {'The Game', 'The Party', 'The Group', 'Game Master', 'Dungeon Master'}
-        return [name.strip() for name in set(extracted_names) if name.strip() not in common_words]
+        unique_names = [name.strip() for name in set(extracted_names) if name.strip() not in common_words]
+        
+        # Convert to ExtractedNPCData format
+        return [
+            ExtractedNPCData(
+                name=name,
+                interactions=f"Mentioned in session text",
+                additional_notes="Extracted using rule-based detection"
+            ) for name in unique_names
+        ]
+    
+    async def get_admin_config(self) -> AdminConfig:
+        """Get admin configuration from database"""
+        config_doc = await db.admin_config.find_one({"config_type": "admin"})
+        if config_doc:
+            return AdminConfig(**config_doc.get('config_data', {}))
+        else:
+            # Return default config
+            return AdminConfig()
+    
+    async def extract_npcs_from_text(self, text: str) -> List[str]:
+        """
+        Legacy method for backward compatibility
+        """
+        extracted_npcs = await self.extract_npcs_advanced(text)
+        return [npc.name for npc in extracted_npcs]
     
     async def summarize_interaction(self, interaction_text: str) -> str:
         """
@@ -227,6 +415,70 @@ def prepare_session_for_storage(session_data: dict) -> dict:
                 # If parsing fails, keep as string
                 pass
     return session_data
+
+# NPC merging utility
+async def merge_npc_data(existing_npc: NPC, extracted_data: ExtractedNPCData, session_id: str) -> NPC:
+    """
+    Intelligently merge extracted NPC data with existing NPC data
+    """
+    # Update fields only if new data is more detailed
+    updates = {}
+    
+    if extracted_data.description and len(extracted_data.description) > len(existing_npc.appearance):
+        updates['appearance'] = extracted_data.description
+    
+    if extracted_data.race and not existing_npc.race:
+        updates['race'] = extracted_data.race
+    
+    if extracted_data.class_role and not existing_npc.class_role:
+        updates['class_role'] = extracted_data.class_role
+    
+    if extracted_data.location and not existing_npc.location:
+        updates['location'] = extracted_data.location
+    
+    if extracted_data.personality_traits:
+        if existing_npc.personality_traits:
+            updates['personality_traits'] = f"{existing_npc.personality_traits}\n{extracted_data.personality_traits}"
+        else:
+            updates['personality_traits'] = extracted_data.personality_traits
+    
+    if extracted_data.relationships:
+        if existing_npc.relationships:
+            updates['relationships'] = f"{existing_npc.relationships}\n{extracted_data.relationships}"
+        else:
+            updates['relationships'] = extracted_data.relationships
+    
+    if extracted_data.status != "alive" and existing_npc.status == "Unknown":
+        updates['status'] = extracted_data.status
+    
+    if extracted_data.significance and not existing_npc.significance:
+        updates['significance'] = extracted_data.significance
+    
+    # Add new interaction to history
+    new_interaction = {
+        "session_id": session_id,
+        "interaction": extracted_data.interactions,
+        "location": extracted_data.location,
+        "loot_given": extracted_data.loot_given,
+        "timestamp": datetime.utcnow(),
+        "extraction_method": "ollama_advanced" if llm_service.enabled else "rule_based"
+    }
+    
+    # Update notes with additional information
+    if extracted_data.additional_notes:
+        if existing_npc.notes:
+            updates['notes'] = f"{existing_npc.notes}\n{extracted_data.additional_notes}"
+        else:
+            updates['notes'] = extracted_data.additional_notes
+    
+    # Apply updates
+    for field, value in updates.items():
+        setattr(existing_npc, field, value)
+    
+    existing_npc.history.append(new_interaction)
+    existing_npc.updated_at = datetime.utcnow()
+    
+    return existing_npc
 
 # API Routes
 @api_router.get("/")
