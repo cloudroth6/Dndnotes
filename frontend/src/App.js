@@ -78,12 +78,15 @@ const RichTextEditor = ({ content, onChange }) => {
 
   const handleFormatting = (command) => {
     const textarea = textareaRef.current;
+    if (!textarea) return;
+    
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selectedText = content.substring(start, end);
     
     let newText = content;
     let formatChars = '';
+    let cursorOffset = 0;
     
     switch (command) {
       case 'bold':
@@ -98,43 +101,86 @@ const RichTextEditor = ({ content, onChange }) => {
     }
     
     if (selectedText) {
+      // Text is selected - wrap it with formatting
       newText = content.substring(0, start) + formatChars + selectedText + formatChars + content.substring(end);
+      cursorOffset = start + formatChars.length + selectedText.length + formatChars.length;
+    } else {
+      // No text selected - insert formatting at cursor
+      newText = content.substring(0, start) + formatChars + formatChars + content.substring(end);
+      cursorOffset = start + formatChars.length;
     }
     
     onChange(newText);
+    
+    // Restore cursor position after state update
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(cursorOffset, cursorOffset);
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e) => {
+    // Keyboard shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'b':
+          e.preventDefault();
+          handleFormatting('bold');
+          break;
+        case 'i':
+          e.preventDefault();
+          handleFormatting('italic');
+          break;
+        case 'u':
+          e.preventDefault();
+          handleFormatting('underline');
+          break;
+      }
+    }
   };
 
   return (
     <div className="border border-gray-600 rounded-lg bg-gray-800">
       <div className="flex gap-2 p-2 bg-gray-700 rounded-t-lg border-b border-gray-600">
         <button
+          type="button"
           onClick={() => handleFormatting('bold')}
-          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm font-bold"
-          title="Bold"
+          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm font-bold transition-colors"
+          title="Bold (Ctrl+B)"
         >
           B
         </button>
         <button
+          type="button"
           onClick={() => handleFormatting('italic')}
-          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm italic"
-          title="Italic"
+          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm italic transition-colors"
+          title="Italic (Ctrl+I)"
         >
           I
         </button>
         <button
+          type="button"
           onClick={() => handleFormatting('underline')}
-          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm underline"
-          title="Underline"
+          className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm underline transition-colors"
+          title="Underline (Ctrl+U)"
         >
           U
         </button>
+        <div className="flex-1"></div>
+        <span className="text-gray-400 text-xs self-center">
+          {content.length} characters
+        </span>
       </div>
       <textarea
         ref={textareaRef}
         value={content}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-32 p-4 bg-gray-800 text-white resize-none focus:outline-none"
+        onKeyDown={handleKeyDown}
+        className="w-full h-32 p-4 bg-gray-800 text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="Add notes, descriptions, or other details..."
+        style={{ minHeight: '128px' }}
       />
     </div>
   );
