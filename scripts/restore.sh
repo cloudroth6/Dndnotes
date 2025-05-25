@@ -127,7 +127,7 @@ rm -rf $TEMP_DIR
 
 # Restart application services
 print_status "Restarting application services..."
-docker-compose restart backend frontend
+$DOCKER_COMPOSE_CMD restart backend frontend
 
 # Wait for services
 sleep 5
