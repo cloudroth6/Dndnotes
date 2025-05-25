@@ -56,6 +56,26 @@ build-no-cache: ## Rebuild all Docker images without cache
 	@echo "🔨 Building Docker images (no cache)..."
 	@$(DOCKER_COMPOSE) build --no-cache
 
+build-frontend: ## Build only frontend (faster)
+	@echo "🔨 Building frontend only..."
+	@$(DOCKER_COMPOSE) build frontend --no-cache
+
+build-backend: ## Build only backend (faster)
+	@echo "🔨 Building backend only..."
+	@$(DOCKER_COMPOSE) build backend --no-cache
+
+fast-build: ## Interactive fast build script
+	@chmod +x scripts/fast-build.sh
+	@./scripts/fast-build.sh
+
+fast-build-frontend: ## Fast build frontend only
+	@chmod +x scripts/fast-build.sh
+	@./scripts/fast-build.sh --frontend
+
+fast-build-backend: ## Fast build backend only
+	@chmod +x scripts/fast-build.sh
+	@./scripts/fast-build.sh --backend
+
 dev: ## Start in development mode with logs visible
 	@echo "🛠️ Starting in development mode..."
 	@$(DOCKER_COMPOSE) up
