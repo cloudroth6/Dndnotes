@@ -74,14 +74,15 @@ const Login = ({ onLogin }) => {
 };
 
 const RichTextEditor = ({ content, onChange }) => {
-  const textareaRef = React.useRef(null);
+  const editorRef = React.useRef(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   const handleFormatting = (command) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
     
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
     const selectedText = content.substring(start, end);
     
     let newText = content;
@@ -114,9 +115,9 @@ const RichTextEditor = ({ content, onChange }) => {
     
     // Restore cursor position after state update
     setTimeout(() => {
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(cursorOffset, cursorOffset);
+      if (editor && !isPreviewMode) {
+        editor.focus();
+        editor.setSelectionRange(cursorOffset, cursorOffset);
       }
     }, 0);
   };
@@ -139,6 +140,24 @@ const RichTextEditor = ({ content, onChange }) => {
           break;
       }
     }
+  };
+
+  // Function to render markdown-style formatting as HTML
+  const renderFormattedText = (text) => {
+    if (!text) return '';
+    
+    // Convert markdown-style formatting to HTML
+    let formatted = text
+      // Bold: **text** -> <strong>text</strong>
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Italic: *text* -> <em>text</em> (but not if it's part of **)
+      .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>')
+      // Underline: __text__ -> <u>text</u>
+      .replace(/__(.*?)__/g, '<u>$1</u>')
+      // Line breaks
+      .replace(/\n/g, '<br>');
+    
+    return formatted;
   };
 
   return (
@@ -168,20 +187,51 @@ const RichTextEditor = ({ content, onChange }) => {
         >
           U
         </button>
+        
+        <div className="border-l border-gray-500 mx-2"></div>
+        
+        <button
+          type="button"
+          onClick={() => setIsPreviewMode(!isPreviewMode)}
+          className={`px-3 py-1 rounded text-sm transition-colors ${
+            isPreviewMode 
+              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+              : 'bg-gray-600 hover:bg-gray-500 text-white'
+          }`}
+          title="Toggle Preview"
+        >
+          {isPreviewMode ? '📝 Edit' : '👁️ Preview'}
+        </button>
+        
         <div className="flex-1"></div>
         <span className="text-gray-400 text-xs self-center">
           {content.length} characters
         </span>
       </div>
-      <textarea
-        ref={textareaRef}
-        value={content}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-full h-32 p-4 bg-gray-800 text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Add notes, descriptions, or other details..."
-        style={{ minHeight: '128px' }}
-      />
+      
+      {isPreviewMode ? (
+        <div 
+          className="w-full h-32 p-4 bg-gray-800 text-white overflow-auto"
+          style={{ minHeight: '128px' }}
+          dangerouslySetInnerHTML={{ __html: renderFormattedText(content) || '<span class="text-gray-500">No content to preview...</span>' }}
+        />
+      ) : (
+        <textarea
+          ref={editorRef}
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full h-32 p-4 bg-gray-800 text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Add notes, descriptions, or other details... Use **bold**, *italic*, __underline__ formatting"
+          style={{ minHeight: '128px' }}
+        />
+      )}
+      
+      {!isPreviewMode && content && (
+        <div className="px-4 py-2 bg-gray-750 border-t border-gray-600 text-xs text-gray-400">
+          💡 Tip: Use **bold**, *italic*, __underline__ for formatting. Click 👁️ Preview to see rendered text.
+        </div>
+      )}
     </div>
   );
 };
