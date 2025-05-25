@@ -28,6 +28,16 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Detect Docker Compose command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    print_error "Docker Compose is not available"
+    exit 1
+fi
+
 # Check if backup file is provided
 if [ $# -eq 0 ]; then
     print_error "Usage: $0 <backup_file.tar.gz>"
