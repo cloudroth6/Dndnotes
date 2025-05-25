@@ -1274,13 +1274,25 @@ const MainApp = ({ username, onLogout }) => {
     }
   };
 
-  const fetchNpcs = async () => {
-    try {
-      const response = await axios.get(`${API}/npcs`);
-      setNpcs(response.data);
-    } catch (err) {
-      console.error("Error fetching NPCs:", err);
-    }
+  // Helper function to render markdown text as HTML (for session cards)
+  const renderFormattedText = (text, maxLength = 200) => {
+    if (!text) return '';
+    
+    // Truncate if needed
+    const truncated = text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+    
+    // Convert markdown-style formatting to HTML
+    let formatted = truncated
+      // Bold: **text** -> <strong>text</strong>
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Italic: *text* -> <em>text</em> (but not if it's part of **)
+      .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>')
+      // Underline: __text__ -> <u>text</u>
+      .replace(/__(.*?)__/g, '<u>$1</u>')
+      // Line breaks
+      .replace(/\n/g, '<br>');
+    
+    return formatted;
   };
 
   const handleSessionSave = () => {
