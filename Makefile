@@ -1,6 +1,12 @@
 # D&D Note-Taking Application - Makefile
 # Convenient commands for managing the application
 
+# Detect Docker Compose command
+DOCKER_COMPOSE := $(shell command -v docker-compose 2> /dev/null)
+ifndef DOCKER_COMPOSE
+	DOCKER_COMPOSE := docker compose
+endif
+
 .PHONY: help setup start stop restart logs build backup restore update clean dev
 
 # Default target
