@@ -1359,17 +1359,113 @@ const MainApp = ({ username, onLogout }) => {
                     </p>
                     
                     {session.structured_data ? (
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-3">
                         {session.structured_data.session_goal && (
                           <div>
-                            <span className="text-gray-400 text-sm">Goal:</span>
-                            <p className="text-white text-sm">{session.structured_data.session_goal.substring(0, 100)}...</p>
+                            <span className="text-gray-400 text-sm font-semibold">🎯 Goal:</span>
+                            <p className="text-white text-sm">{session.structured_data.session_goal.length > 80 ? session.structured_data.session_goal.substring(0, 80) + "..." : session.structured_data.session_goal}</p>
                           </div>
                         )}
+                        
                         {session.structured_data.players_present.length > 0 && (
                           <div>
-                            <span className="text-gray-400 text-sm">Players:</span>
+                            <span className="text-gray-400 text-sm font-semibold">👥 Players:</span>
                             <p className="text-white text-sm">{session.structured_data.players_present.join(", ")}</p>
+                          </div>
+                        )}
+
+                        {session.structured_data.combat_encounters.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">⚔️ Combat:</span>
+                            <p className="text-white text-sm">{session.structured_data.combat_encounters.length} encounter{session.structured_data.combat_encounters.length !== 1 ? 's' : ''}</p>
+                            <div className="ml-2 mt-1 space-y-1">
+                              {session.structured_data.combat_encounters.slice(0, 2).map((combat, idx) => (
+                                <p key={idx} className="text-gray-300 text-xs">• {combat.description.length > 60 ? combat.description.substring(0, 60) + "..." : combat.description}</p>
+                              ))}
+                              {session.structured_data.combat_encounters.length > 2 && (
+                                <p className="text-gray-400 text-xs">...and {session.structured_data.combat_encounters.length - 2} more</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {session.structured_data.roleplay_encounters.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">🎭 Roleplay:</span>
+                            <p className="text-white text-sm">{session.structured_data.roleplay_encounters.length} encounter{session.structured_data.roleplay_encounters.length !== 1 ? 's' : ''}</p>
+                            <div className="ml-2 mt-1 space-y-1">
+                              {session.structured_data.roleplay_encounters.slice(0, 2).map((rp, idx) => (
+                                <p key={idx} className="text-gray-300 text-xs">• {rp.description.length > 60 ? rp.description.substring(0, 60) + "..." : rp.description}</p>
+                              ))}
+                              {session.structured_data.roleplay_encounters.length > 2 && (
+                                <p className="text-gray-400 text-xs">...and {session.structured_data.roleplay_encounters.length - 2} more</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {session.structured_data.npcs_encountered.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">🧙‍♂️ NPCs:</span>
+                            <p className="text-white text-sm">
+                              {session.structured_data.npcs_encountered.slice(0, 3).map(npc => npc.npc_name).join(", ")}
+                              {session.structured_data.npcs_encountered.length > 3 && ` +${session.structured_data.npcs_encountered.length - 3} more`}
+                            </p>
+                          </div>
+                        )}
+
+                        {session.structured_data.loot.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">💰 Loot:</span>
+                            <p className="text-white text-sm">{session.structured_data.loot.length} item{session.structured_data.loot.length !== 1 ? 's' : ''} found</p>
+                            <div className="ml-2 mt-1">
+                              <p className="text-gray-300 text-xs">
+                                {session.structured_data.loot.slice(0, 2).map(item => item.item_name).join(", ")}
+                                {session.structured_data.loot.length > 2 && ` +${session.structured_data.loot.length - 2} more`}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {session.structured_data.notable_roleplay_moments.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">✨ Key Moments:</span>
+                            <p className="text-white text-sm">{session.structured_data.notable_roleplay_moments.length} memorable moment{session.structured_data.notable_roleplay_moments.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        )}
+
+                        {session.structured_data.overarching_missions.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">🌍 Missions:</span>
+                            <div className="ml-2 mt-1 space-y-1">
+                              {session.structured_data.overarching_missions.map((mission, idx) => (
+                                <div key={idx} className="flex justify-between items-center">
+                                  <p className="text-gray-300 text-xs">{mission.mission_name}</p>
+                                  <span className={`text-xs px-2 py-0.5 rounded ${
+                                    mission.status === 'Completed' ? 'bg-green-600 text-green-100' :
+                                    mission.status === 'Failed' ? 'bg-red-600 text-red-100' :
+                                    mission.status === 'On Hold' ? 'bg-yellow-600 text-yellow-100' :
+                                    'bg-blue-600 text-blue-100'
+                                  }`}>
+                                    {mission.status}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {session.structured_data.next_session_goals && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">🚀 Next:</span>
+                            <p className="text-white text-sm">{session.structured_data.next_session_goals.length > 60 ? session.structured_data.next_session_goals.substring(0, 60) + "..." : session.structured_data.next_session_goals}</p>
+                          </div>
+                        )}
+
+                        {session.structured_data.notes && (
+                          <div>
+                            <span className="text-gray-400 text-sm font-semibold">📝 Notes:</span>
+                            <p className="text-white text-sm">{session.structured_data.notes.length > 80 ? session.structured_data.notes.substring(0, 80) + "..." : session.structured_data.notes}</p>
                           </div>
                         )}
                       </div>
