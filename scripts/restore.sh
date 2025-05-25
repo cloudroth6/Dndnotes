@@ -94,18 +94,18 @@ if [ -f backup_*.tar.gz ]; then
     tar -xzf backup_*.tar.gz
     
     # Copy to container
-    docker cp backup_*/ $(docker-compose ps -q mongodb):/tmp/restore/
+    docker cp backup_*/ $($DOCKER_COMPOSE_CMD ps -q mongodb):/tmp/restore/
     
     # Drop existing database (with confirmation)
     print_warning "Dropping existing database: $DB_NAME"
-    docker-compose exec -T mongodb mongosh \
+    $DOCKER_COMPOSE_CMD exec -T mongodb mongosh \
         --username $MONGO_USER \
         --password $MONGO_PASS \
         --authenticationDatabase admin \
         --eval "db.getSiblingDB('$DB_NAME').dropDatabase()"
     
     # Restore database
-    docker-compose exec -T mongodb mongorestore \
+    $DOCKER_COMPOSE_CMD exec -T mongodb mongorestore \
         --username $MONGO_USER \
         --password $MONGO_PASS \
         --authenticationDatabase admin \
