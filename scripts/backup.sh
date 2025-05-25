@@ -23,6 +23,16 @@ print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+# Detect Docker Compose command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    print_error "Docker Compose is not available"
+    exit 1
+fi
+
 # Source environment variables
 source .env 2>/dev/null || true
 
