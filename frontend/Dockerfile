@@ -6,29 +6,31 @@ ENV NODE_ENV=development
 ENV CHOKIDAR_USEPOLLING=true
 ENV WATCHPACK_POLLING=true
 
-# Set work directory
-WORKDIR /app
-
 # Install dependencies for better compatibility
 RUN apk add --no-cache \
     curl \
     git
 
-# Copy package files
-COPY package*.json ./
-COPY yarn.lock ./
+# Create non-root user first (before copying files)
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nextjs -u 1001
+
+# Set work directory and change ownership
+WORKDIR /app
+RUN chown nextjs:nodejs /app
+
+# Switch to non-root user
+USER nextjs
+
+# Copy package files (as non-root user)
+COPY --chown=nextjs:nodejs package*.json ./
+COPY --chown=nextjs:nodejs yarn.lock ./
 
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
-# Copy source code
-COPY . .
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs \
-    && adduser -S nextjs -u 1001 \
-    && chown -R nextjs:nodejs /app
-USER nextjs
+# Copy source code (as non-root user)
+COPY --chown=nextjs:nodejs . .
 
 # Expose port
 EXPOSE 3000
