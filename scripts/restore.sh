@@ -80,9 +80,9 @@ print_status "Extracting backup archive..."
 tar -xzf "$BACKUP_FILE"
 
 # Check if services are running
-if ! docker-compose ps | grep -q "Up"; then
+if ! $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
     print_error "Docker services are not running. Please start them first:"
-    echo "  docker-compose up -d"
+    echo "  $DOCKER_COMPOSE_CMD up -d"
     exit 1
 fi
 
