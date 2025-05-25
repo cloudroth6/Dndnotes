@@ -38,12 +38,16 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+    print_success "Docker Compose (legacy) is installed"
+elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+    print_success "Docker Compose (plugin) is installed"
+else
     print_error "Docker Compose is not installed. Please install Docker Compose first."
     exit 1
 fi
-
-print_success "Docker and Docker Compose are installed"
 
 # Check if .env file exists
 if [ ! -f .env ]; then
