@@ -7,11 +7,12 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 import uuid
 from datetime import datetime, date
 import secrets
 import re
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -42,45 +43,51 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
         )
     return credentials.username
 
+# Custom JSON encoder for dates
+def json_serializer(obj):
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
 # Enhanced Pydantic Models for Structured Sessions
 class CombatEncounter(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    description: str
+    description: str = ""
     enemies: str = ""
     outcome: str = ""
     notable_events: str = ""
 
 class RoleplayEncounter(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    description: str
+    description: str = ""
     npcs_involved: List[str] = Field(default_factory=list)
     outcome: str = ""
     importance: str = ""
 
 class LootItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    item_name: str
+    item_name: str = ""
     description: str = ""
     value: str = ""
     recipient: str = ""
 
 class OverarchingMission(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    mission_name: str
+    mission_name: str = ""
     status: str = "In Progress"  # In Progress, Completed, Failed, On Hold
     description: str = ""
     notes: str = ""
 
 class NPCMention(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    npc_name: str
+    npc_name: str = ""
     role: str = ""
     notes: str = ""
     first_encounter: bool = False
 
 class SessionStructuredData(BaseModel):
     session_number: Optional[int] = None
-    session_date: Optional[date] = None
+    session_date: Optional[Union[str, date]] = None  # Accept both string and date
     players_present: List[str] = Field(default_factory=list)
     session_goal: str = ""
     combat_encounters: List[CombatEncounter] = Field(default_factory=list)
@@ -206,6 +213,21 @@ class OllamaLLMService:
 # Initialize LLM service
 llm_service = OllamaLLMService()
 
+# Helper function to convert session data for MongoDB storage
+def prepare_session_for_storage(session_data: dict) -> dict:
+    """Convert session data to MongoDB-compatible format"""
+    if session_data.get('structured_data') and session_data['structured_data'].get('session_date'):
+        session_date = session_data['structured_data']['session_date']
+        if isinstance(session_date, str) and session_date:
+            try:
+                # Convert string date to ISO format for consistent storage
+                parsed_date = datetime.fromisoformat(session_date.replace('Z', '+00:00')).date()
+                session_data['structured_data']['session_date'] = parsed_date.isoformat()
+            except:
+                # If parsing fails, keep as string
+                pass
+    return session_data
+
 # API Routes
 @api_router.get("/")
 async def root():
@@ -218,10 +240,19 @@ async def check_auth(username: str = Depends(authenticate)):
 # Session routes
 @api_router.post("/sessions", response_model=Session)
 async def create_session(session_data: SessionCreate, username: str = Depends(authenticate)):
-    session_dict = session_data.dict()
-    session_obj = Session(**session_dict)
-    await db.sessions.insert_one(session_obj.dict())
-    return session_obj
+    try:
+        session_dict = session_data.dict()
+        session_dict = prepare_session_for_storage(session_dict)
+        session_obj = Session(**session_dict)
+        
+        # Convert to dict for MongoDB storage
+        storage_dict = session_obj.dict()
+        
+        await db.sessions.insert_one(storage_dict)
+        return session_obj
+    except Exception as e:
+        logger.error(f"Error creating session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating session: {str(e)}")
 
 @api_router.get("/sessions", response_model=List[Session])
 async def get_sessions(username: str = Depends(authenticate)):
@@ -237,19 +268,24 @@ async def get_session(session_id: str, username: str = Depends(authenticate)):
 
 @api_router.put("/sessions/{session_id}", response_model=Session)
 async def update_session(session_id: str, session_data: SessionUpdate, username: str = Depends(authenticate)):
-    update_data = {k: v for k, v in session_data.dict().items() if v is not None}
-    update_data["updated_at"] = datetime.utcnow()
-    
-    result = await db.sessions.update_one(
-        {"id": session_id}, 
-        {"$set": update_data}
-    )
-    
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    updated_session = await db.sessions.find_one({"id": session_id})
-    return Session(**updated_session)
+    try:
+        update_data = {k: v for k, v in session_data.dict().items() if v is not None}
+        update_data = prepare_session_for_storage(update_data)
+        update_data["updated_at"] = datetime.utcnow()
+        
+        result = await db.sessions.update_one(
+            {"id": session_id}, 
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        updated_session = await db.sessions.find_one({"id": session_id})
+        return Session(**updated_session)
+    except Exception as e:
+        logger.error(f"Error updating session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating session: {str(e)}")
 
 @api_router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str, username: str = Depends(authenticate)):
@@ -377,12 +413,14 @@ async def suggest_npcs(text_data: dict, username: str = Depends(authenticate)):
 # Include the router in the main app
 app.include_router(api_router)
 
+# Enhanced CORS configuration
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
-    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Configure logging
