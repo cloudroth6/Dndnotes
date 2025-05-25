@@ -99,6 +99,6 @@ echo "✅ Backup process completed successfully!"
 echo "📁 Backup location: $BACKUP_DIR/dnd_notes_backup_$TIMESTAMP.tar.gz"
 echo
 echo "To restore this backup:"
-echo "  1. Stop the application: docker-compose down"
+echo "  1. Stop the application: $DOCKER_COMPOSE_CMD down"
 echo "  2. Run: ./scripts/restore.sh $BACKUP_DIR/dnd_notes_backup_$TIMESTAMP.tar.gz"
-echo "  3. Start the application: docker-compose up -d"
+echo "  3. Start the application: $DOCKER_COMPOSE_CMD up -d"
