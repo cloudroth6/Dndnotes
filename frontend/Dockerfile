@@ -1,5 +1,5 @@
-# Use Node.js 18 Alpine image
-FROM node:18-alpine
+# Use Node.js 20 Alpine image (required for react-router-dom@7.5.1)
+FROM node:20-alpine
 
 # Set environment variables
 ENV NODE_ENV=development
