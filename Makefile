@@ -77,25 +77,25 @@ update: ## Update application to latest version
 
 clean: ## Clean up Docker containers and volumes
 	@echo "🧹 Cleaning up..."
-	@docker-compose down -v
+	@$(DOCKER_COMPOSE) down -v
 	@docker system prune -f
 
 clean-all: ## Clean up everything including images
 	@echo "🧹 Deep cleaning..."
-	@docker-compose down -v --rmi all
+	@$(DOCKER_COMPOSE) down -v --rmi all
 	@docker system prune -af
 
 ps: ## Show status of all services
-	@docker-compose ps
+	@$(DOCKER_COMPOSE) ps
 
 shell-backend: ## Open shell in backend container
-	@docker-compose exec backend bash
+	@$(DOCKER_COMPOSE) exec backend bash
 
 shell-frontend: ## Open shell in frontend container
-	@docker-compose exec frontend sh
+	@$(DOCKER_COMPOSE) exec frontend sh
 
 shell-mongodb: ## Open MongoDB shell
-	@docker-compose exec mongodb mongosh -u admin -p password123
+	@$(DOCKER_COMPOSE) exec mongodb mongosh -u admin -p password123
 
 health: ## Check health of all services
 	@echo "🏥 Checking service health..."
@@ -104,20 +104,20 @@ health: ## Check health of all services
 	@echo "Frontend:"
 	@curl -s http://localhost:3000 >/dev/null && echo " ✅ Healthy" || echo " ❌ Unhealthy"
 	@echo "MongoDB:"
-	@docker-compose exec -T mongodb mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1 && echo " ✅ Healthy" || echo " ❌ Unhealthy"
+	@$(DOCKER_COMPOSE) exec -T mongodb mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1 && echo " ✅ Healthy" || echo " ❌ Unhealthy"
 
 # Development helpers
 install-backend: ## Install backend dependencies
-	@docker-compose exec backend pip install -r requirements.txt
+	@$(DOCKER_COMPOSE) exec backend pip install -r requirements.txt
 
 install-frontend: ## Install frontend dependencies
-	@docker-compose exec frontend yarn install
+	@$(DOCKER_COMPOSE) exec frontend yarn install
 
 test-backend: ## Run backend tests
-	@docker-compose exec backend python -m pytest
+	@$(DOCKER_COMPOSE) exec backend python -m pytest
 
 test-frontend: ## Run frontend tests
-	@docker-compose exec frontend yarn test
+	@$(DOCKER_COMPOSE) exec frontend yarn test
 
 # Quick actions
 quick-restart: stop start ## Quick restart (stop + start)
@@ -142,10 +142,10 @@ export-data: ## Export all data as JSON
 
 # Production helpers
 prod-start: ## Start in production mode with nginx
-	@ENVIRONMENT=production docker-compose --profile nginx up -d
+	@ENVIRONMENT=production $(DOCKER_COMPOSE) --profile nginx up -d
 
 prod-logs: ## View production logs
-	@docker-compose --profile nginx logs -f
+	@$(DOCKER_COMPOSE) --profile nginx logs -f
 
 # Monitoring
 monitor: ## Monitor resource usage
