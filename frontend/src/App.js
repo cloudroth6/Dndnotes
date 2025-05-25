@@ -1472,7 +1472,13 @@ const MainApp = ({ username, onLogout }) => {
                             <p className="text-white text-sm">{session.structured_data.combat_encounters.length} encounter{session.structured_data.combat_encounters.length !== 1 ? 's' : ''}</p>
                             <div className="ml-2 mt-1 space-y-1">
                               {session.structured_data.combat_encounters.slice(0, 2).map((combat, idx) => (
-                                <p key={idx} className="text-gray-300 text-xs">• {combat.description.length > 60 ? combat.description.substring(0, 60) + "..." : combat.description}</p>
+                                <div 
+                                  key={idx} 
+                                  className="text-gray-300 text-xs"
+                                  dangerouslySetInnerHTML={{ 
+                                    __html: `• ${renderFormattedText(combat.description, 60)}` 
+                                  }}
+                                />
                               ))}
                               {session.structured_data.combat_encounters.length > 2 && (
                                 <p className="text-gray-400 text-xs">...and {session.structured_data.combat_encounters.length - 2} more</p>
