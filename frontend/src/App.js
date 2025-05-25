@@ -979,37 +979,7 @@ const FreeFormSessionEditor = ({ session, onSave, onCancel }) => {
       <div>
         <label className="block text-gray-300 text-sm font-bold mb-2">Session Notes</label>
         <div onMouseUp={handleTextSelection}>
-          <div className="border border-gray-600 rounded-lg bg-gray-800">
-            <div className="flex gap-2 p-2 bg-gray-700 rounded-t-lg border-b border-gray-600">
-              <button
-                onClick={() => {/* formatting logic */}}
-                className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm font-bold"
-                title="Bold"
-              >
-                B
-              </button>
-              <button
-                onClick={() => {/* formatting logic */}}
-                className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm italic"
-                title="Italic"
-              >
-                I
-              </button>
-              <button
-                onClick={() => {/* formatting logic */}}
-                className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-sm underline"
-                title="Underline"
-              >
-                U
-              </button>
-            </div>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full h-64 p-4 bg-gray-800 text-white resize-none focus:outline-none"
-              placeholder="Take your D&D session notes here... Select text and use the formatting buttons above, or highlight NPCs for extraction."
-            />
-          </div>
+          <RichTextEditor content={content} onChange={setContent} />
         </div>
       </div>
       
