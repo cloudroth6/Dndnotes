@@ -93,10 +93,10 @@ check_port ${MONGO_PORT:-27017} "MongoDB"
 
 # Build and start services
 print_status "Building Docker images..."
-docker-compose build
+$DOCKER_COMPOSE_CMD build
 
 print_status "Starting services..."
-docker-compose up -d
+$DOCKER_COMPOSE_CMD up -d
 
 # Wait for services to be ready
 print_status "Waiting for services to start..."
@@ -106,7 +106,7 @@ sleep 10
 print_status "Checking service health..."
 
 # Check MongoDB
-if docker-compose exec -T mongodb mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+if $DOCKER_COMPOSE_CMD exec -T mongodb mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
     print_success "MongoDB is healthy"
 else
     print_error "MongoDB is not responding"
