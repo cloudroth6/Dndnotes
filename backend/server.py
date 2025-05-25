@@ -489,7 +489,120 @@ async def root():
 async def check_auth(username: str = Depends(authenticate)):
     return {"authenticated": True, "username": username}
 
-# Session routes
+# Admin Configuration Routes
+@api_router.get("/admin/config", response_model=AdminConfig)
+async def get_admin_config(username: str = Depends(authenticate)):
+    """Get admin configuration"""
+    return await llm_service.get_admin_config()
+
+@api_router.post("/admin/config")
+async def update_admin_config(config: AdminConfig, username: str = Depends(authenticate)):
+    """Update admin configuration"""
+    try:
+        # Update Ollama config in service
+        await llm_service.update_config(config.ollama_config)
+        
+        # Save to database
+        config_doc = {
+            "config_type": "admin",
+            "config_data": config.dict(),
+            "updated_at": datetime.utcnow(),
+            "updated_by": username
+        }
+        
+        await db.admin_config.update_one(
+            {"config_type": "admin"},
+            {"$set": config_doc},
+            upsert=True
+        )
+        
+        return {"message": "Admin configuration updated successfully"}
+    except Exception as e:
+        logger.error(f"Error updating admin config: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating configuration: {str(e)}")
+
+@api_router.get("/admin/ollama/test")
+async def test_ollama_connection(username: str = Depends(authenticate)):
+    """Test Ollama connection"""
+    return await llm_service.test_connection()
+
+@api_router.get("/admin/ollama/config", response_model=OllamaConfig)
+async def get_ollama_config(username: str = Depends(authenticate)):
+    """Get current Ollama configuration"""
+    return await llm_service.get_config()
+
+# Enhanced NPC Extraction Routes
+@api_router.post("/extract-npcs-advanced")
+async def extract_npcs_advanced(request: NPCExtractionRequest, username: str = Depends(authenticate)):
+    """Advanced NPC extraction using Ollama LLM or fallback methods"""
+    try:
+        # Extract NPCs using advanced method
+        extracted_npcs = await llm_service.extract_npcs_advanced(request.session_text)
+        
+        results = []
+        
+        for extracted_npc in extracted_npcs:
+            # Check if NPC already exists
+            existing_npc = await db.npcs.find_one({"name": extracted_npc.name})
+            
+            if existing_npc:
+                # Merge with existing NPC
+                existing_npc_obj = NPC(**existing_npc)
+                merged_npc = await merge_npc_data(existing_npc_obj, extracted_npc, request.session_id)
+                
+                # Update in database
+                await db.npcs.update_one(
+                    {"id": merged_npc.id},
+                    {"$set": merged_npc.dict()}
+                )
+                
+                results.append({
+                    "action": "updated",
+                    "npc": merged_npc,
+                    "extraction_method": "ollama_advanced" if llm_service.enabled else "rule_based"
+                })
+            else:
+                # Create new NPC
+                new_npc = NPC(
+                    name=extracted_npc.name,
+                    race=extracted_npc.race,
+                    class_role=extracted_npc.class_role,
+                    appearance=extracted_npc.description,
+                    personality_traits=extracted_npc.personality_traits,
+                    location=extracted_npc.location,
+                    relationships=extracted_npc.relationships,
+                    significance=extracted_npc.significance,
+                    status=extracted_npc.status,
+                    notes=extracted_npc.additional_notes,
+                    history=[{
+                        "session_id": request.session_id,
+                        "interaction": extracted_npc.interactions,
+                        "location": extracted_npc.location,
+                        "loot_given": extracted_npc.loot_given,
+                        "timestamp": datetime.utcnow(),
+                        "extraction_method": "ollama_advanced" if llm_service.enabled else "rule_based"
+                    }]
+                )
+                
+                await db.npcs.insert_one(new_npc.dict())
+                
+                results.append({
+                    "action": "created",
+                    "npc": new_npc,
+                    "extraction_method": "ollama_advanced" if llm_service.enabled else "rule_based"
+                })
+        
+        return {
+            "npcs_processed": len(results),
+            "results": results,
+            "ollama_enabled": llm_service.enabled
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in advanced NPC extraction: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error extracting NPCs: {str(e)}")
+
+# Session routes (keeping existing functionality)
 @api_router.post("/sessions", response_model=Session)
 async def create_session(session_data: SessionCreate, username: str = Depends(authenticate)):
     try:
@@ -576,7 +689,7 @@ async def export_session(session_id: str, username: str = Depends(authenticate))
     
     return export_data
 
-# NPC routes (keeping existing)
+# Enhanced NPC routes
 @api_router.post("/npcs", response_model=NPC)
 async def create_npc(npc_data: NPCCreate, username: str = Depends(authenticate)):
     npc_dict = npc_data.dict()
@@ -619,7 +732,7 @@ async def delete_npc(npc_id: str, username: str = Depends(authenticate)):
         raise HTTPException(status_code=404, detail="NPC not found")
     return {"message": "NPC deleted successfully"}
 
-# NPC extraction route
+# Legacy NPC extraction route (for backward compatibility)
 @api_router.post("/extract-npc")
 async def extract_npc(extraction_data: NPCExtraction, username: str = Depends(authenticate)):
     # Check if NPC already exists
@@ -630,7 +743,8 @@ async def extract_npc(extraction_data: NPCExtraction, username: str = Depends(au
         interaction_entry = {
             "session_id": extraction_data.session_id,
             "interaction": extraction_data.extracted_text,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.utcnow(),
+            "extraction_method": "manual"
         }
         
         await db.npcs.update_one(
@@ -648,7 +762,8 @@ async def extract_npc(extraction_data: NPCExtraction, username: str = Depends(au
             history=[{
                 "session_id": extraction_data.session_id,
                 "interaction": extraction_data.extracted_text,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
+                "extraction_method": "manual"
             }]
         )
         
