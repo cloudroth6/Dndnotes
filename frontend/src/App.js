@@ -1450,7 +1450,12 @@ const MainApp = ({ username, onLogout }) => {
                         {session.structured_data.session_goal && (
                           <div>
                             <span className="text-gray-400 text-sm font-semibold">🎯 Goal:</span>
-                            <p className="text-white text-sm">{session.structured_data.session_goal.length > 80 ? session.structured_data.session_goal.substring(0, 80) + "..." : session.structured_data.session_goal}</p>
+                            <div 
+                              className="text-white text-sm mt-1"
+                              dangerouslySetInnerHTML={{ 
+                                __html: renderFormattedText(session.structured_data.session_goal, 80) 
+                              }}
+                            />
                           </div>
                         )}
                         
