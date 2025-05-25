@@ -22,43 +22,43 @@ setup: ## Initial setup - create .env and start application
 
 start: ## Start all services
 	@echo "🚀 Starting services..."
-	@docker-compose up -d
+	@$(DOCKER_COMPOSE) up -d
 
 start-with-nginx: ## Start all services including Nginx reverse proxy
 	@echo "🚀 Starting services with Nginx..."
-	@docker-compose --profile nginx up -d
+	@$(DOCKER_COMPOSE) --profile nginx up -d
 
 stop: ## Stop all services
 	@echo "🛑 Stopping services..."
-	@docker-compose down
+	@$(DOCKER_COMPOSE) down
 
 restart: ## Restart all services
 	@echo "🔄 Restarting services..."
-	@docker-compose restart
+	@$(DOCKER_COMPOSE) restart
 
 logs: ## View logs from all services
-	@docker-compose logs -f
+	@$(DOCKER_COMPOSE) logs -f
 
 logs-backend: ## View backend logs only
-	@docker-compose logs -f backend
+	@$(DOCKER_COMPOSE) logs -f backend
 
 logs-frontend: ## View frontend logs only
-	@docker-compose logs -f frontend
+	@$(DOCKER_COMPOSE) logs -f frontend
 
 logs-mongodb: ## View MongoDB logs only
-	@docker-compose logs -f mongodb
+	@$(DOCKER_COMPOSE) logs -f mongodb
 
 build: ## Rebuild all Docker images
 	@echo "🔨 Building Docker images..."
-	@docker-compose build
+	@$(DOCKER_COMPOSE) build
 
 build-no-cache: ## Rebuild all Docker images without cache
 	@echo "🔨 Building Docker images (no cache)..."
-	@docker-compose build --no-cache
+	@$(DOCKER_COMPOSE) build --no-cache
 
 dev: ## Start in development mode with logs visible
 	@echo "🛠️ Starting in development mode..."
-	@docker-compose up
+	@$(DOCKER_COMPOSE) up
 
 backup: ## Create backup of campaign data
 	@echo "💾 Creating backup..."
