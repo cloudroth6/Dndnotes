@@ -1274,6 +1274,15 @@ const MainApp = ({ username, onLogout }) => {
     }
   };
 
+  const fetchNpcs = async () => {
+    try {
+      const response = await axios.get(`${API}/npcs`);
+      setNpcs(response.data);
+    } catch (err) {
+      console.error("Error fetching NPCs:", err);
+    }
+  };
+
   // Helper function to render markdown text as HTML (for session cards)
   const renderFormattedText = (text, maxLength = 200) => {
     if (!text) return '';
