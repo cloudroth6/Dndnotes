@@ -869,7 +869,238 @@ async def extract_npcs_advanced(request: NPCExtractionRequest, username: str = D
         logger.error(f"Error in advanced NPC extraction: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error extracting NPCs: {str(e)}")
 
-# Session routes (keeping existing functionality)
+# Player Management Routes
+@api_router.post("/players", response_model=Player)
+async def create_player(player_data: PlayerCreate, username: str = Depends(authenticate)):
+    """Create a new player"""
+    try:
+        player_dict = player_data.dict()
+        player_obj = Player(**player_dict)
+        await db.players.insert_one(player_obj.dict())
+        return player_obj
+    except Exception as e:
+        logger.error(f"Error creating player: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating player: {str(e)}")
+
+@api_router.get("/players", response_model=List[Player])
+async def get_players(username: str = Depends(authenticate)):
+    """Get all players"""
+    players = await db.players.find().sort("name", 1).to_list(1000)
+    return [Player(**player) for player in players]
+
+@api_router.get("/players/{player_id}", response_model=Player)
+async def get_player(player_id: str, username: str = Depends(authenticate)):
+    """Get a specific player"""
+    player = await db.players.find_one({"id": player_id})
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return Player(**player)
+
+@api_router.put("/players/{player_id}", response_model=Player)
+async def update_player(player_id: str, player_data: PlayerUpdate, username: str = Depends(authenticate)):
+    """Update a player"""
+    try:
+        update_data = {k: v for k, v in player_data.dict().items() if v is not None}
+        update_data["updated_at"] = datetime.utcnow()
+        
+        result = await db.players.update_one(
+            {"id": player_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Player not found")
+        
+        updated_player = await db.players.find_one({"id": player_id})
+        return Player(**updated_player)
+    except Exception as e:
+        logger.error(f"Error updating player: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating player: {str(e)}")
+
+@api_router.delete("/players/{player_id}")
+async def delete_player(player_id: str, username: str = Depends(authenticate)):
+    """Delete a player"""
+    result = await db.players.delete_one({"id": player_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Player not found")
+    return {"message": "Player deleted successfully"}
+
+@api_router.get("/players/{player_id}/loot", response_model=List[LootItem])
+async def get_player_loot(player_id: str, username: str = Depends(authenticate)):
+    """Get all loot owned by a specific player"""
+    loot_items = await db.loot.find({"current_owner": player_id}).sort("created_at", -1).to_list(1000)
+    return [LootItem(**item) for item in loot_items]
+
+@api_router.get("/players/{player_id}/attendance")
+async def get_player_attendance(player_id: str, username: str = Depends(authenticate)):
+    """Get attendance statistics for a player"""
+    player = await db.players.find_one({"id": player_id})
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found")
+    
+    # Get sessions where player was invited
+    sessions_invited = await db.sessions.find(
+        {"structured_data.players_invited": player_id}
+    ).to_list(1000)
+    
+    # Calculate attendance stats
+    total_invited = len(sessions_invited)
+    attended_sessions = player.get("sessions_attended", [])
+    attendance_rate = (len(attended_sessions) / total_invited * 100) if total_invited > 0 else 0
+    
+    return {
+        "player_id": player_id,
+        "player_name": player["name"],
+        "total_sessions_invited": total_invited,
+        "sessions_attended": len(attended_sessions),
+        "attendance_rate": round(attendance_rate, 1),
+        "attended_session_ids": attended_sessions
+    }
+
+# Loot Management Routes
+@api_router.post("/loot", response_model=LootItem)
+async def create_loot_item(loot_data: LootCreate, username: str = Depends(authenticate)):
+    """Create a new loot item"""
+    try:
+        loot_dict = loot_data.dict()
+        
+        # Add to ownership history if there's an owner
+        if loot_dict.get("current_owner"):
+            loot_dict["ownership_history"] = [{
+                "owner": loot_dict["current_owner"],
+                "acquired_date": datetime.utcnow(),
+                "method": "Manual creation"
+            }]
+        
+        loot_obj = LootItem(**loot_dict)
+        await db.loot.insert_one(loot_obj.dict())
+        return loot_obj
+    except Exception as e:
+        logger.error(f"Error creating loot item: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating loot item: {str(e)}")
+
+@api_router.get("/loot", response_model=List[LootItem])
+async def get_loot_items(username: str = Depends(authenticate)):
+    """Get all loot items"""
+    loot_items = await db.loot.find().sort("created_at", -1).to_list(1000)
+    return [LootItem(**item) for item in loot_items]
+
+@api_router.get("/loot/{loot_id}", response_model=LootItem)
+async def get_loot_item(loot_id: str, username: str = Depends(authenticate)):
+    """Get a specific loot item"""
+    loot_item = await db.loot.find_one({"id": loot_id})
+    if not loot_item:
+        raise HTTPException(status_code=404, detail="Loot item not found")
+    return LootItem(**loot_item)
+
+@api_router.put("/loot/{loot_id}", response_model=LootItem)
+async def update_loot_item(loot_id: str, loot_data: LootUpdate, username: str = Depends(authenticate)):
+    """Update a loot item"""
+    try:
+        # Get current item to check for owner changes
+        current_item = await db.loot.find_one({"id": loot_id})
+        if not current_item:
+            raise HTTPException(status_code=404, detail="Loot item not found")
+        
+        update_data = {k: v for k, v in loot_data.dict().items() if v is not None}
+        update_data["updated_at"] = datetime.utcnow()
+        
+        # If owner is changing, add to ownership history
+        if "current_owner" in update_data and update_data["current_owner"] != current_item.get("current_owner"):
+            ownership_history = current_item.get("ownership_history", [])
+            ownership_history.append({
+                "owner": update_data["current_owner"],
+                "acquired_date": datetime.utcnow(),
+                "method": "Manual transfer"
+            })
+            update_data["ownership_history"] = ownership_history
+        
+        result = await db.loot.update_one(
+            {"id": loot_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Loot item not found")
+        
+        updated_item = await db.loot.find_one({"id": loot_id})
+        return LootItem(**updated_item)
+    except Exception as e:
+        logger.error(f"Error updating loot item: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating loot item: {str(e)}")
+
+@api_router.delete("/loot/{loot_id}")
+async def delete_loot_item(loot_id: str, username: str = Depends(authenticate)):
+    """Delete a loot item"""
+    result = await db.loot.delete_one({"id": loot_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Loot item not found")
+    return {"message": "Loot item deleted successfully"}
+
+@api_router.post("/extract-loot-advanced")
+async def extract_loot_advanced(request: LootExtractionRequest, username: str = Depends(authenticate)):
+    """Advanced loot extraction using Ollama LLM or fallback methods"""
+    try:
+        # Extract loot using advanced method
+        extracted_loot = await llm_service.extract_loot_advanced(request.session_text, request.players)
+        
+        results = []
+        
+        for extracted_item in extracted_loot:
+            # Create new loot item
+            loot_data = {
+                "item_name": extracted_item.item_name,
+                "description": extracted_item.description,
+                "type": extracted_item.type,
+                "rarity": extracted_item.rarity,
+                "value": extracted_item.value,
+                "magical_properties": extracted_item.magical_properties,
+                "session_found": request.session_id,
+                "location_found": extracted_item.location_found,
+                "current_owner": "",  # Will be set based on recipient
+            }
+            
+            # Find player by name/character name
+            if extracted_item.recipient:
+                for player in request.players:
+                    if (player.get("name", "").lower() in extracted_item.recipient.lower() or
+                        player.get("character_name", "").lower() in extracted_item.recipient.lower()):
+                        loot_data["current_owner"] = player.get("id", "")
+                        break
+            
+            # Add ownership history
+            ownership_history = []
+            if loot_data["current_owner"]:
+                ownership_history.append({
+                    "owner": loot_data["current_owner"],
+                    "acquired_date": datetime.utcnow(),
+                    "method": f"Extracted from session: {extracted_item.circumstances}",
+                    "session_id": request.session_id
+                })
+            
+            loot_data["ownership_history"] = ownership_history
+            
+            # Create loot item
+            new_loot = LootItem(**loot_data)
+            await db.loot.insert_one(new_loot.dict())
+            
+            results.append({
+                "action": "created",
+                "loot": new_loot,
+                "extraction_method": "ollama_advanced" if llm_service.enabled else "rule_based"
+            })
+        
+        return {
+            "loot_processed": len(results),
+            "results": results,
+            "ollama_enabled": llm_service.enabled
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in advanced loot extraction: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error extracting loot: {str(e)}")
+
+# Enhanced session routes with attendance tracking
 @api_router.post("/sessions", response_model=Session)
 async def create_session(session_data: SessionCreate, username: str = Depends(authenticate)):
     try:
