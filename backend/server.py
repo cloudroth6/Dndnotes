@@ -556,12 +556,94 @@ class OllamaLLMService:
             # Return default config
             return AdminConfig()
     
-    async def extract_npcs_from_text(self, text: str) -> List[str]:
+    async def extract_loot_advanced(self, session_text: str, players: List[Dict[str, str]], custom_prompt: str = None) -> List[ExtractedLootData]:
         """
-        Legacy method for backward compatibility
+        Advanced loot extraction using Ollama LLM with custom prompts
         """
-        extracted_npcs = await self.extract_npcs_advanced(text)
-        return [npc.name for npc in extracted_npcs]
+        if not self.enabled:
+            # Fallback to rule-based extraction
+            return await self.extract_loot_fallback(session_text, players)
+        
+        try:
+            # Get admin config for prompt
+            admin_config = await self.get_admin_config()
+            prompt_template = custom_prompt or admin_config.loot_extraction_prompt.prompt_text
+            
+            # Format player list for prompt
+            player_names = [f"{p.get('name', '')} ({p.get('character_name', '')})" for p in players if p.get('name')]
+            player_list = ", ".join(player_names) if player_names else "No specific players mentioned"
+            
+            # Format prompt with session text and players
+            formatted_prompt = prompt_template.format(
+                session_text=session_text,
+                player_list=player_list
+            )
+            
+            # Call Ollama API
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+                payload = {
+                    "model": self.model,
+                    "prompt": formatted_prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.temperature
+                    }
+                }
+                
+                async with session.post(f"{self.host}/api/generate", json=payload) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        response_text = result.get('response', '')
+                        
+                        # Parse JSON response
+                        try:
+                            loot_data = json.loads(response_text)
+                            if isinstance(loot_data, list):
+                                return [ExtractedLootData(**item) for item in loot_data if isinstance(item, dict)]
+                            else:
+                                logger.warning(f"Unexpected loot response format from Ollama: {response_text}")
+                                return []
+                        except json.JSONDecodeError:
+                            logger.error(f"Failed to parse JSON from Ollama loot response: {response_text}")
+                            return []
+                    else:
+                        logger.error(f"Ollama API error in loot extraction: {response.status}")
+                        return []
+                        
+        except Exception as e:
+            logger.error(f"Error calling Ollama API for loot extraction: {str(e)}")
+            # Fallback to rule-based extraction
+            return await self.extract_loot_fallback(session_text, players)
+    
+    async def extract_loot_fallback(self, session_text: str, players: List[Dict[str, str]]) -> List[ExtractedLootData]:
+        """
+        Fallback rule-based loot extraction when Ollama is unavailable
+        """
+        loot_patterns = [
+            r'found\s+(?:a\s+)?([^.!?\n]+?)(?:\s+worth\s+([^.!?\n]+))?',
+            r'gained\s+(?:a\s+)?([^.!?\n]+)',
+            r'received\s+(?:a\s+)?([^.!?\n]+)',
+            r'looted\s+(?:a\s+)?([^.!?\n]+)',
+            r'treasure.*?([^.!?\n]+)',
+            r'(\d+\s+gold\s+pieces?)',
+            r'(\d+\s+gp)',
+        ]
+        
+        extracted_loot = []
+        for pattern in loot_patterns:
+            matches = re.finditer(pattern, session_text, re.IGNORECASE)
+            for match in matches:
+                item_name = match.group(1).strip()
+                if len(item_name) > 3 and len(item_name) < 100:  # Basic validation
+                    extracted_loot.append(
+                        ExtractedLootData(
+                            item_name=item_name,
+                            description="Found in session",
+                            circumstances="Extracted using rule-based detection"
+                        )
+                    )
+        
+        return extracted_loot[:10]  # Limit to 10 items to avoid spam
     
     async def summarize_interaction(self, interaction_text: str) -> str:
         """
