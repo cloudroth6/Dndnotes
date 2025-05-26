@@ -1424,15 +1424,6 @@ const OllamaTestModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const fetchNpcs = async () => {
-    try {
-      const response = await axios.get(`${API}/npcs`);
-      setNpcs(response.data);
-    } catch (err) {
-      console.error("Error fetching NPCs:", err);
-    }
-  };
-
   const testOllamaConnection = async () => {
     setIsTestingOllama(true);
     setShowOllamaStatus(true);
