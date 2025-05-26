@@ -211,7 +211,7 @@ class NPCExtraction(BaseModel):
     extracted_text: str
     npc_name: str
 
-# Advanced NPC Extraction Models
+# Enhanced NPC Extraction Models
 class NPCExtractionRequest(BaseModel):
     session_text: str
     session_id: str
@@ -230,6 +230,184 @@ class ExtractedNPCData(BaseModel):
     status: str = "alive"
     significance: str = ""
     additional_notes: str = ""
+
+# Player Management Models
+class PlayerCreate(BaseModel):
+    name: str
+    character_name: str = ""
+    character_class: str = ""
+    character_level: int = 1
+    notes: str = ""
+    active: bool = True
+
+class PlayerUpdate(BaseModel):
+    name: Optional[str] = None
+    character_name: Optional[str] = None
+    character_class: Optional[str] = None
+    character_level: Optional[int] = None
+    notes: Optional[str] = None
+    active: Optional[bool] = None
+
+class Player(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    character_name: str = ""
+    character_class: str = ""
+    character_level: int = 1
+    notes: str = ""
+    active: bool = True
+    total_sessions: int = 0
+    sessions_attended: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+# Loot Management Models
+class LootItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    item_name: str
+    description: str = ""
+    type: str = ""  # Weapon, Armor, Consumable, Misc, etc.
+    rarity: str = "Common"  # Common, Uncommon, Rare, Very Rare, Legendary
+    value: str = ""
+    magical_properties: str = ""
+    session_found: str = ""
+    location_found: str = ""
+    current_owner: str = ""  # Player ID or "Party" or "NPC"
+    ownership_history: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class LootCreate(BaseModel):
+    item_name: str
+    description: str = ""
+    type: str = ""
+    rarity: str = "Common"
+    value: str = ""
+    magical_properties: str = ""
+    session_found: str = ""
+    location_found: str = ""
+    current_owner: str = ""
+
+class LootUpdate(BaseModel):
+    item_name: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None
+    rarity: Optional[str] = None
+    value: Optional[str] = None
+    magical_properties: Optional[str] = None
+    current_owner: Optional[str] = None
+
+class ExtractedLootData(BaseModel):
+    item_name: str
+    description: str = ""
+    type: str = ""
+    rarity: str = "Common"
+    value: str = ""
+    magical_properties: str = ""
+    location_found: str = ""
+    recipient: str = ""  # Who got the item
+    circumstances: str = ""  # How it was obtained
+
+# Enhanced Session Models with Attendance and Loot
+class SessionAttendance(BaseModel):
+    player_id: str
+    player_name: str
+    character_name: str = ""
+    present: bool = True
+    notes: str = ""
+
+class SessionStructuredData(BaseModel):
+    session_number: Optional[int] = None
+    session_date: Optional[Union[str, date]] = None
+    session_duration: str = ""  # e.g., "3 hours"
+    dm_name: str = ""
+    
+    # Player attendance
+    players_invited: List[str] = Field(default_factory=list)  # Player IDs
+    attendance: List[SessionAttendance] = Field(default_factory=list)
+    
+    # Session content
+    session_goal: str = ""
+    session_summary: str = ""
+    
+    # Encounters
+    combat_encounters: List[CombatEncounter] = Field(default_factory=list)
+    roleplay_encounters: List[RoleplayEncounter] = Field(default_factory=list)
+    
+    # NPCs and Loot (extracted automatically)
+    npcs_encountered: List[NPCMention] = Field(default_factory=list)
+    loot_found: List[str] = Field(default_factory=list)  # Loot item IDs
+    
+    # Notes and planning
+    notes: str = ""
+    notable_roleplay_moments: List[str] = Field(default_factory=list)
+    next_session_goals: str = ""
+    overarching_missions: List[OverarchingMission] = Field(default_factory=list)
+    
+    # Session outcomes
+    experience_awarded: str = ""
+    gold_awarded: str = ""
+    story_progress: str = ""
+
+# Loot Extraction Request
+class LootExtractionRequest(BaseModel):
+    session_text: str
+    session_id: str
+    players: List[Dict[str, str]] = Field(default_factory=list)  # [{"id": "...", "name": "..."}]
+    use_ollama: bool = False
+
+# Enhanced Prompt Templates
+class LootExtractionPrompt(BaseModel):
+    prompt_text: str = """
+You are an expert D&D game master assistant. Analyze the following game session text and extract ALL loot, treasure, and items found or acquired.
+
+For each item found, provide a JSON object with these fields:
+- item_name: The item's name (be specific)
+- description: Physical description and any details mentioned
+- type: Category (Weapon, Armor, Consumable, Jewelry, Coin, Misc, etc.)
+- rarity: Rarity level if mentioned (Common, Uncommon, Rare, Very Rare, Legendary)
+- value: Monetary value if mentioned (gold pieces, coins, etc.)
+- magical_properties: Any magical effects or properties described
+- location_found: Where the item was discovered
+- recipient: Which player character received the item (use exact names from session)
+- circumstances: How the item was obtained (found, rewarded, purchased, looted, etc.)
+
+Players in this session: {player_list}
+
+Return ONLY a JSON array of loot objects. If no loot is found, return an empty array [].
+
+Session Text:
+{session_text}
+"""
+
+class NPCExtractionPrompt(BaseModel):
+    prompt_text: str = """
+You are an expert D&D game master assistant. Analyze the following game session text and extract ALL Non-Player Characters (NPCs) mentioned.
+
+For each NPC found, provide a JSON object with these fields:
+- name: The NPC's full name
+- description: Physical description if mentioned
+- race: Race/species if mentioned
+- class_role: Class, profession, or role if mentioned
+- location: Where they were encountered
+- personality_traits: Personality, quirks, or mannerisms observed
+- interactions: What happened with this NPC in this session
+- relationships: Relationships to other NPCs or party members mentioned
+- loot_given: Any items, rewards, or loot provided by this NPC
+- status: alive/deceased/unknown
+- significance: How important this NPC seems to the story
+- additional_notes: Any other relevant information
+
+Return ONLY a JSON array of NPC objects. If no NPCs are found, return an empty array [].
+
+Session Text:
+{session_text}
+"""
+
+class AdminConfig(BaseModel):
+    ollama_config: OllamaConfig = Field(default_factory=OllamaConfig)
+    npc_extraction_prompt: NPCExtractionPrompt = Field(default_factory=NPCExtractionPrompt)
+    loot_extraction_prompt: LootExtractionPrompt = Field(default_factory=LootExtractionPrompt)
 
 # Enhanced Ollama LLM Service
 class OllamaLLMService:
