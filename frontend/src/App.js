@@ -1259,6 +1259,11 @@ const MainApp = ({ username, onLogout }) => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sessionType, setSessionType] = useState("structured"); // "structured" or "free_form"
+  
+  // Ollama test state
+  const [ollamaStatus, setOllamaStatus] = useState(null);
+  const [isTestingOllama, setIsTestingOllama] = useState(false);
+  const [showOllamaStatus, setShowOllamaStatus] = useState(false);
 
   useEffect(() => {
     fetchSessions();
@@ -1271,6 +1276,59 @@ const MainApp = ({ username, onLogout }) => {
       setSessions(response.data);
     } catch (err) {
       console.error("Error fetching sessions:", err);
+    }
+  };
+
+  const fetchNpcs = async () => {
+    try {
+      const response = await axios.get(`${API}/npcs`);
+      setNpcs(response.data);
+    } catch (err) {
+      console.error("Error fetching NPCs:", err);
+    }
+  };
+
+  const testOllamaConnection = async () => {
+    setIsTestingOllama(true);
+    setShowOllamaStatus(true);
+    
+    try {
+      const response = await axios.get(`${API}/admin/ollama/test`);
+      setOllamaStatus(response.data);
+    } catch (err) {
+      console.error("Error testing Ollama connection:", err);
+      setOllamaStatus({
+        status: "error",
+        message: "Failed to connect to backend or test Ollama"
+      });
+    } finally {
+      setIsTestingOllama(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "connected":
+        return "text-green-400";
+      case "disabled":
+        return "text-yellow-400";
+      case "error":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "connected":
+        return "✅";
+      case "disabled":
+        return "⚠️";
+      case "error":
+        return "❌";
+      default:
+        return "🔍";
     }
   };
 
