@@ -645,6 +645,13 @@ class OllamaLLMService:
         
         return extracted_loot[:10]  # Limit to 10 items to avoid spam
     
+    async def extract_npcs_from_text(self, text: str) -> List[str]:
+        """
+        Legacy method for backward compatibility
+        """
+        extracted_npcs = await self.extract_npcs_advanced(text)
+        return [npc.name for npc in extracted_npcs]
+    
     async def summarize_interaction(self, interaction_text: str) -> str:
         """
         Placeholder for interaction summarization using LLM.
