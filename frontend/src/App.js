@@ -1408,9 +1408,7 @@ const OllamaTestModal = ({ isOpen, onClose }) => {
   const [sessionType, setSessionType] = useState("structured"); // "structured" or "free_form"
   
   // Ollama test state
-  const [ollamaStatus, setOllamaStatus] = useState(null);
-  const [isTestingOllama, setIsTestingOllama] = useState(false);
-  const [showOllamaStatus, setShowOllamaStatus] = useState(false);
+  const [showOllamaModal, setShowOllamaModal] = useState(false);
 
   useEffect(() => {
     fetchSessions();
