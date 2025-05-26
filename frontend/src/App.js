@@ -1400,6 +1400,8 @@ const OllamaTestModal = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
+const MainApp = ({ username, onLogout }) => {
   const [currentView, setCurrentView] = useState("sessions");
   const [sessions, setSessions] = useState([]);
   const [npcs, setNpcs] = useState([]);
