@@ -1451,6 +1451,29 @@ const MainApp = ({ username, onLogout }) => {
             >
               NPCs
             </button>
+            
+            {/* Ollama Test Button */}
+            <button
+              onClick={async () => {
+                try {
+                  const response = await axios.get(`${API}/admin/ollama/test`);
+                  const status = response.data.status;
+                  const message = response.data.message;
+                  const icon = status === "connected" ? "✅" : status === "disabled" ? "⚠️" : "❌";
+                  const alertType = status === "connected" ? "success" : "info";
+                  alert(`${icon} Ollama Status: ${status.toUpperCase()}\n${message}`);
+                } catch (err) {
+                  alert("❌ Error testing Ollama connection");
+                  console.error("Error testing Ollama:", err);
+                }
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded flex items-center gap-2"
+              title="Test Ollama AI Connection"
+            >
+              <span>🤖</span>
+              <span className="hidden md:inline">Test AI</span>
+            </button>
+            
             <span className="text-gray-300">Welcome, {username}</span>
             <button
               onClick={onLogout}
