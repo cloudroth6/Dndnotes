@@ -1252,7 +1252,154 @@ const NPCCard = ({ npc, onUpdate }) => {
   );
 };
 
-const MainApp = ({ username, onLogout }) => {
+const OllamaTestModal = ({ isOpen, onClose }) => {
+  const [testResult, setTestResult] = useState(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const runTest = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    
+    try {
+      const response = await axios.get(`${API}/admin/ollama/test`);
+      setTestResult(response.data);
+    } catch (err) {
+      setTestResult({
+        status: "error",
+        message: "Failed to connect to backend or test Ollama",
+        error: err.message
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      runTest();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "connected": return "text-green-400";
+      case "disabled": return "text-yellow-400";
+      case "error": return "text-red-400";
+      default: return "text-gray-400";
+    }
+  };
+
+  const getStatusBg = (status) => {
+    switch (status) {
+      case "connected": return "bg-green-900 border-green-600";
+      case "disabled": return "bg-yellow-900 border-yellow-600";
+      case "error": return "bg-red-900 border-red-600";
+      default: return "bg-gray-900 border-gray-600";
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "connected": return "✅";
+      case "disabled": return "⚠️";
+      case "error": return "❌";
+      default: return "🔍";
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 max-w-md w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-white">🤖 Ollama AI Connection Test</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+
+        {isTesting ? (
+          <div className="text-center py-8">
+            <div className="animate-spin text-4xl mb-4">🤖</div>
+            <p className="text-gray-300">Testing connection to Ollama...</p>
+          </div>
+        ) : testResult ? (
+          <div className={`p-4 rounded border ${getStatusBg(testResult.status)}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">{getStatusIcon(testResult.status)}</span>
+              <span className={`font-bold ${getStatusColor(testResult.status)}`}>
+                {testResult.status.toUpperCase()}
+              </span>
+            </div>
+            
+            <p className="text-white mb-3">{testResult.message}</p>
+            
+            {testResult.available_models && (
+              <div className="mt-3">
+                <p className="text-gray-300 text-sm font-semibold mb-1">Available Models:</p>
+                <div className="flex flex-wrap gap-1">
+                  {testResult.available_models.map((model, index) => (
+                    <span
+                      key={index}
+                      className="bg-blue-600 text-blue-100 px-2 py-1 rounded text-xs"
+                    >
+                      {model}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {testResult.status === "disabled" && (
+              <div className="mt-3 p-3 bg-gray-700 rounded">
+                <p className="text-yellow-200 text-sm font-semibold mb-1">To enable Ollama:</p>
+                <ol className="text-gray-300 text-xs list-decimal list-inside space-y-1">
+                  <li>Install Ollama: <code className="bg-gray-600 px-1 rounded">ollama serve</code></li>
+                  <li>Download model: <code className="bg-gray-600 px-1 rounded">ollama pull llama2</code></li>
+                  <li>Update .env: <code className="bg-gray-600 px-1 rounded">OLLAMA_ENABLED=true</code></li>
+                  <li>Restart app: <code className="bg-gray-600 px-1 rounded">make restart</code></li>
+                </ol>
+              </div>
+            )}
+
+            {testResult.status === "error" && (
+              <div className="mt-3 p-3 bg-gray-700 rounded">
+                <p className="text-red-200 text-sm font-semibold mb-1">Troubleshooting:</p>
+                <ul className="text-gray-300 text-xs list-disc list-inside space-y-1">
+                  <li>Check if Ollama is running: <code className="bg-gray-600 px-1 rounded">curl http://localhost:11434/api/tags</code></li>
+                  <li>Restart Ollama service</li>
+                  <li>Check .env configuration</li>
+                  <li>Review logs: <code className="bg-gray-600 px-1 rounded">make logs-backend</code></li>
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={runTest}
+            disabled={isTesting}
+            className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-4 py-2 rounded flex items-center gap-2"
+          >
+            <span>🔄</span>
+            {isTesting ? "Testing..." : "Test Again"}
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
   const [currentView, setCurrentView] = useState("sessions");
   const [sessions, setSessions] = useState([]);
   const [npcs, setNpcs] = useState([]);
