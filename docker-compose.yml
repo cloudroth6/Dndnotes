@@ -37,15 +37,13 @@ services:
       - DATABASE_NAME=dnd_notes
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
-      # Alternative: Use root user (simpler but less secure)
-      # - MONGODB_URL=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/dnd_notes?authSource=admin
     ports:
       - "${BACKEND_PORT:-8001}:8001"
     volumes:
       - ./backend:/app
       - backend_data:/app/data
     networks:
-      - dnd_network
+      - dnd-network  # Fixed: was dnd_network
     depends_on:
       mongodb:
         condition: service_healthy
@@ -107,6 +105,8 @@ services:
 
 volumes:
   mongodb_data:
+    driver: local
+  backend_data:    # Added missing volume definition
     driver: local
   backend_logs:
     driver: local
