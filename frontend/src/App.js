@@ -511,15 +511,48 @@ const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
             </div>
             
             <div>
-              <label className="block text-gray-300 text-sm font-bold mb-2">Players Present</label>
-              <div className="flex gap-2 mb-2">
+              <label className="block text-gray-300 text-sm font-bold mb-2">Player Attendance</label>
+              
+              {/* Campaign Players Quick Selection */}
+              {selectedCampaign && selectedCampaign.players.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-sm text-gray-400 mb-2">Select from campaign players:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCampaign.players.map(player => {
+                      const isPresent = sessionData.structured_data.players_present.includes(player.name);
+                      return (
+                        <button
+                          key={player.id}
+                          onClick={() => {
+                            if (isPresent) {
+                              removePlayer(player.name);
+                            } else {
+                              updateStructuredData('players_present', [...sessionData.structured_data.players_present, player.name]);
+                            }
+                          }}
+                          className={`px-3 py-1 rounded text-sm ${
+                            isPresent 
+                              ? "bg-green-600 text-white" 
+                              : "bg-gray-600 hover:bg-gray-500 text-gray-300"
+                          }`}
+                        >
+                          {player.name} {player.character_name && `(${player.character_name})`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {/* Manual Player Addition */}
+              <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   value={newPlayer}
                   onChange={(e) => setNewPlayer(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
                   className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
-                  placeholder="Add player name..."
+                  placeholder="Add player name manually..."
                 />
                 <button
                   onClick={addPlayer}
@@ -528,6 +561,8 @@ const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
                   Add
                 </button>
               </div>
+              
+              {/* Present Players Display */}
               <div className="flex flex-wrap gap-2">
                 {sessionData.structured_data.players_present.map((player, index) => (
                   <span key={index} className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
