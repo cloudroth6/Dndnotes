@@ -1298,21 +1298,34 @@ const MainApp = ({ username, onLogout }) => {
     }
   };
 
-  const fetchSessions = async () => {
-    try {
-      const response = await axios.get(`${API}/sessions`);
-      setSessions(response.data);
-    } catch (err) {
-      console.error("Error fetching sessions:", err);
-    }
-  };
-
   const fetchNpcs = async () => {
     try {
       const response = await axios.get(`${API}/npcs`);
       setNpcs(response.data);
     } catch (err) {
       console.error("Error fetching NPCs:", err);
+    }
+  };
+
+  const createSession = async (sessionData) => {
+    if (!selectedCampaign) {
+      alert("Please select a campaign first");
+      return;
+    }
+
+    try {
+      const newSession = {
+        ...sessionData,
+        campaign_id: selectedCampaign.id
+      };
+
+      const response = await axios.post(`${API}/sessions`, newSession);
+      await fetchCampaignSessions(selectedCampaign.id); // Refresh campaign sessions
+      setSelectedSession(response.data);
+      setIsEditing(true);
+    } catch (err) {
+      console.error("Error creating session:", err);
+      alert("Failed to create session");
     }
   };
 
