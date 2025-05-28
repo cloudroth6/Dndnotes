@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
     environment:
       # Use the application user created by init script
-      - MONGODB_URL=mongodb://dnd_app_user:dnd_app_password@mongodb:27017/dnd_notes
+      - MONGO_URL=mongodb://dnd_app_user:dnd_app_password@mongodb:27017/dnd_notes  # Changed from MONGODB_URL
       - DATABASE_NAME=dnd_notes
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
@@ -48,7 +48,7 @@ services:
       mongodb:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
