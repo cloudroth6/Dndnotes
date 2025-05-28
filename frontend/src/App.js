@@ -2191,6 +2191,7 @@ const MainApp = ({ username, onLogout }) => {
           campaign={selectedCampaign}
           onClose={() => setShowCampaignSettings(false)}
           onCampaignUpdated={fetchCampaigns}
+          onDeleteCampaign={handleDeleteCampaign}
         />
       )}
       
