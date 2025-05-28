@@ -994,7 +994,7 @@ const StructuredSessionEditor = ({ session, onSave, onCancel, selectedCampaign }
   );
 };
 
-const FreeFormSessionEditor = ({ session, onSave, onCancel }) => {
+const FreeFormSessionEditor = ({ session, onSave, onCancel, selectedCampaign }) => {
   const [title, setTitle] = useState(session?.title || "");
   const [content, setContent] = useState(session?.content || "");
   const [selectedText, setSelectedText] = useState("");
