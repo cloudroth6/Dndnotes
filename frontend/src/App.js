@@ -1768,6 +1768,66 @@ const MainApp = ({ username, onLogout }) => {
     setSessionToDelete(null);
   };
 
+  const handleDeleteCampaign = async (campaignId) => {
+    // Check if this campaign has any sessions
+    try {
+      const response = await axios.get(`${API}/campaigns/${campaignId}/sessions`);
+      setCampaignToDelete({ id: campaignId, sessionCount: response.data.length });
+      setShowCampaignDeleteConfirm(true);
+    } catch (err) {
+      console.error("Error checking campaign sessions:", err);
+      // Even if we can't check sessions, allow deletion
+      setCampaignToDelete({ id: campaignId, sessionCount: 0 });
+      setShowCampaignDeleteConfirm(true);
+    }
+  };
+
+  const confirmDeleteCampaign = async () => {
+    if (campaignToDelete) {
+      try {
+        console.log("Deleting campaign:", campaignToDelete.id);
+        const response = await axios.delete(`${API}/campaigns/${campaignToDelete.id}`);
+        console.log("Delete response:", response);
+        
+        // Refresh campaigns list
+        await fetchCampaigns();
+        
+        // If the deleted campaign was currently selected, clear it and select first available
+        if (selectedCampaign?.id === campaignToDelete.id) {
+          setSelectedSession(null);
+          setIsEditing(false);
+          setSelectedCampaign(null);
+          setSessions([]);
+          
+          // After campaigns refresh, auto-select first campaign if available
+          setTimeout(() => {
+            const updatedCampaigns = campaigns.filter(c => c.id !== campaignToDelete.id);
+            if (updatedCampaigns.length > 0) {
+              setSelectedCampaign(updatedCampaigns[0]);
+            }
+          }, 100);
+        }
+        
+        // Close modals
+        setShowCampaignDeleteConfirm(false);
+        setShowCampaignSettings(false);
+        setCampaignToDelete(null);
+        
+        console.log("Campaign deleted successfully!");
+      } catch (err) {
+        console.error("Error deleting campaign:", err);
+        alert(`Failed to delete campaign: ${err.response?.data?.detail || err.message}`);
+        setShowCampaignDeleteConfirm(false);
+        setCampaignToDelete(null);
+      }
+    }
+  };
+
+  const cancelDeleteCampaign = () => {
+    setShowCampaignDeleteConfirm(false);
+    setCampaignToDelete(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <nav className="bg-gray-800 border-b border-gray-700 p-4">
