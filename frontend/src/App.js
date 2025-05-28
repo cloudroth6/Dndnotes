@@ -1252,6 +1252,331 @@ const NPCCard = ({ npc, onUpdate }) => {
   );
 };
 
+// Campaign Creation Modal Component
+const CampaignCreationModal = ({ onClose, onCampaignCreated }) => {
+  const [campaignData, setCampaignData] = useState({
+    name: '',
+    description: '',
+    dm_name: '',
+    players: []
+  });
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newCharacterName, setNewCharacterName] = useState('');
+
+  const addPlayer = () => {
+    if (newPlayerName.trim()) {
+      const player = {
+        id: Date.now().toString(),
+        name: newPlayerName.trim(),
+        character_name: newCharacterName.trim(),
+        status: 'Active',
+        notes: '',
+        joined_date: new Date().toISOString()
+      };
+      setCampaignData(prev => ({
+        ...prev,
+        players: [...prev.players, player]
+      }));
+      setNewPlayerName('');
+      setNewCharacterName('');
+    }
+  };
+
+  const removePlayer = (playerId) => {
+    setCampaignData(prev => ({
+      ...prev,
+      players: prev.players.filter(p => p.id !== playerId)
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(`${API}/campaigns`, campaignData);
+      onCampaignCreated();
+      onClose();
+    } catch (err) {
+      console.error("Error creating campaign:", err);
+      alert("Failed to create campaign");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Create New Campaign</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Campaign Name *</label>
+            <input
+              type="text"
+              value={campaignData.name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+            <textarea
+              value={campaignData.description}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white h-20"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">DM Name</label>
+            <input
+              type="text"
+              value={campaignData.dm_name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, dm_name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Players</label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Player Name"
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Character Name (optional)"
+                  value={newCharacterName}
+                  onChange={(e) => setNewCharacterName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <button
+                  type="button"
+                  onClick={addPlayer}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Add
+                </button>
+              </div>
+
+              {campaignData.players.map(player => (
+                <div key={player.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">
+                  <span className="text-white">
+                    {player.name} {player.character_name && `(${player.character_name})`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePlayer(player.id)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Create Campaign
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Campaign Settings Modal Component
+const CampaignSettingsModal = ({ campaign, onClose, onCampaignUpdated }) => {
+  const [campaignData, setCampaignData] = useState({
+    name: campaign.name,
+    description: campaign.description || '',
+    dm_name: campaign.dm_name || '',
+    players: [...campaign.players]
+  });
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newCharacterName, setNewCharacterName] = useState('');
+
+  const addPlayer = async () => {
+    if (newPlayerName.trim()) {
+      const player = {
+        id: Date.now().toString(),
+        name: newPlayerName.trim(),
+        character_name: newCharacterName.trim(),
+        status: 'Active',
+        notes: '',
+        joined_date: new Date().toISOString()
+      };
+      
+      try {
+        await axios.post(`${API}/campaigns/${campaign.id}/players`, player);
+        setCampaignData(prev => ({
+          ...prev,
+          players: [...prev.players, player]
+        }));
+        setNewPlayerName('');
+        setNewCharacterName('');
+      } catch (err) {
+        console.error("Error adding player:", err);
+        alert("Failed to add player");
+      }
+    }
+  };
+
+  const removePlayer = async (playerId) => {
+    try {
+      await axios.delete(`${API}/campaigns/${campaign.id}/players/${playerId}`);
+      setCampaignData(prev => ({
+        ...prev,
+        players: prev.players.filter(p => p.id !== playerId)
+      }));
+    } catch (err) {
+      console.error("Error removing player:", err);
+      alert("Failed to remove player");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const updateData = {
+        name: campaignData.name,
+        description: campaignData.description,
+        dm_name: campaignData.dm_name
+      };
+      await axios.put(`${API}/campaigns/${campaign.id}`, updateData);
+      onCampaignUpdated();
+      onClose();
+    } catch (err) {
+      console.error("Error updating campaign:", err);
+      alert("Failed to update campaign");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Campaign Settings</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Campaign Name *</label>
+            <input
+              type="text"
+              value={campaignData.name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+            <textarea
+              value={campaignData.description}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white h-20"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">DM Name</label>
+            <input
+              type="text"
+              value={campaignData.dm_name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, dm_name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Manage Players</label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Player Name"
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Character Name (optional)"
+                  value={newCharacterName}
+                  onChange={(e) => setNewCharacterName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <button
+                  type="button"
+                  onClick={addPlayer}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Add
+                </button>
+              </div>
+
+              {campaignData.players.map(player => (
+                <div key={player.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">
+                  <span className="text-white">
+                    {player.name} {player.character_name && `(${player.character_name})`}
+                    <span className="text-gray-400 text-sm ml-2">• {player.status}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePlayer(player.id)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const MainApp = ({ username, onLogout }) => {
   const [currentView, setCurrentView] = useState("sessions");
   const [sessions, setSessions] = useState([]);
