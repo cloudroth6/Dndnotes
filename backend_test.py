@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 class DDNoteAPITester:
-    def __init__(self, base_url: str = "https://18b4df16-5a9e-4b05-bd8d-feae6b4f3299.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://75d5e6ec-ba95-44b9-8cbc-03cdfd7b84d5.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.auth = ("admin", "admin")
