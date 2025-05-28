@@ -236,9 +236,10 @@ const RichTextEditor = ({ content, onChange }) => {
   );
 };
 
-const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
+const StructuredSessionEditor = ({ session, onSave, onCancel, selectedCampaign }) => {
   const [sessionData, setSessionData] = useState({
     title: session?.title || "",
+    campaign_id: session?.campaign_id || selectedCampaign?.id || "",
     session_type: "structured",
     structured_data: session?.structured_data || {
       session_number: null,
@@ -511,15 +512,48 @@ const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
             </div>
             
             <div>
-              <label className="block text-gray-300 text-sm font-bold mb-2">Players Present</label>
-              <div className="flex gap-2 mb-2">
+              <label className="block text-gray-300 text-sm font-bold mb-2">Player Attendance</label>
+              
+              {/* Campaign Players Quick Selection */}
+              {selectedCampaign && selectedCampaign.players.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-sm text-gray-400 mb-2">Select from campaign players:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCampaign.players.map(player => {
+                      const isPresent = sessionData.structured_data.players_present.includes(player.name);
+                      return (
+                        <button
+                          key={player.id}
+                          onClick={() => {
+                            if (isPresent) {
+                              removePlayer(player.name);
+                            } else {
+                              updateStructuredData('players_present', [...sessionData.structured_data.players_present, player.name]);
+                            }
+                          }}
+                          className={`px-3 py-1 rounded text-sm ${
+                            isPresent 
+                              ? "bg-green-600 text-white" 
+                              : "bg-gray-600 hover:bg-gray-500 text-gray-300"
+                          }`}
+                        >
+                          {player.name} {player.character_name && `(${player.character_name})`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {/* Manual Player Addition */}
+              <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   value={newPlayer}
                   onChange={(e) => setNewPlayer(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addPlayer()}
                   className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
-                  placeholder="Add player name..."
+                  placeholder="Add player name manually..."
                 />
                 <button
                   onClick={addPlayer}
@@ -528,6 +562,8 @@ const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
                   Add
                 </button>
               </div>
+              
+              {/* Present Players Display */}
               <div className="flex flex-wrap gap-2">
                 {sessionData.structured_data.players_present.map((player, index) => (
                   <span key={index} className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
@@ -958,7 +994,7 @@ const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
   );
 };
 
-const FreeFormSessionEditor = ({ session, onSave, onCancel }) => {
+const FreeFormSessionEditor = ({ session, onSave, onCancel, selectedCampaign }) => {
   const [title, setTitle] = useState(session?.title || "");
   const [content, setContent] = useState(session?.content || "");
   const [selectedText, setSelectedText] = useState("");
@@ -999,6 +1035,7 @@ const FreeFormSessionEditor = ({ session, onSave, onCancel }) => {
       const sessionData = {
         title,
         content,
+        campaign_id: session?.campaign_id || selectedCampaign?.id || "",
         session_type: "free_form"
       };
       
@@ -1252,25 +1289,393 @@ const NPCCard = ({ npc, onUpdate }) => {
   );
 };
 
+// Campaign Creation Modal Component
+const CampaignCreationModal = ({ onClose, onCampaignCreated }) => {
+  const [campaignData, setCampaignData] = useState({
+    name: '',
+    description: '',
+    dm_name: '',
+    players: []
+  });
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newCharacterName, setNewCharacterName] = useState('');
+
+  const addPlayer = () => {
+    if (newPlayerName.trim()) {
+      const player = {
+        id: Date.now().toString(),
+        name: newPlayerName.trim(),
+        character_name: newCharacterName.trim(),
+        status: 'Active',
+        notes: '',
+        joined_date: new Date().toISOString()
+      };
+      setCampaignData(prev => ({
+        ...prev,
+        players: [...prev.players, player]
+      }));
+      setNewPlayerName('');
+      setNewCharacterName('');
+    }
+  };
+
+  const removePlayer = (playerId) => {
+    setCampaignData(prev => ({
+      ...prev,
+      players: prev.players.filter(p => p.id !== playerId)
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(`${API}/campaigns`, campaignData);
+      onCampaignCreated();
+      onClose();
+    } catch (err) {
+      console.error("Error creating campaign:", err);
+      alert("Failed to create campaign");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Create New Campaign</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Campaign Name *</label>
+            <input
+              type="text"
+              value={campaignData.name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+            <textarea
+              value={campaignData.description}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white h-20"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">DM Name</label>
+            <input
+              type="text"
+              value={campaignData.dm_name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, dm_name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Players</label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Player Name"
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Character Name (optional)"
+                  value={newCharacterName}
+                  onChange={(e) => setNewCharacterName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <button
+                  type="button"
+                  onClick={addPlayer}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Add
+                </button>
+              </div>
+
+              {campaignData.players.map(player => (
+                <div key={player.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">
+                  <span className="text-white">
+                    {player.name} {player.character_name && `(${player.character_name})`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePlayer(player.id)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Create Campaign
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Campaign Settings Modal Component
+const CampaignSettingsModal = ({ campaign, onClose, onCampaignUpdated, onDeleteCampaign }) => {
+  const [campaignData, setCampaignData] = useState({
+    name: campaign.name,
+    description: campaign.description || '',
+    dm_name: campaign.dm_name || '',
+    players: [...campaign.players]
+  });
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newCharacterName, setNewCharacterName] = useState('');
+
+  const addPlayer = async () => {
+    if (newPlayerName.trim()) {
+      const player = {
+        id: Date.now().toString(),
+        name: newPlayerName.trim(),
+        character_name: newCharacterName.trim(),
+        status: 'Active',
+        notes: '',
+        joined_date: new Date().toISOString()
+      };
+      
+      try {
+        await axios.post(`${API}/campaigns/${campaign.id}/players`, player);
+        setCampaignData(prev => ({
+          ...prev,
+          players: [...prev.players, player]
+        }));
+        setNewPlayerName('');
+        setNewCharacterName('');
+      } catch (err) {
+        console.error("Error adding player:", err);
+        alert("Failed to add player");
+      }
+    }
+  };
+
+  const removePlayer = async (playerId) => {
+    try {
+      await axios.delete(`${API}/campaigns/${campaign.id}/players/${playerId}`);
+      setCampaignData(prev => ({
+        ...prev,
+        players: prev.players.filter(p => p.id !== playerId)
+      }));
+    } catch (err) {
+      console.error("Error removing player:", err);
+      alert("Failed to remove player");
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const updateData = {
+        name: campaignData.name,
+        description: campaignData.description,
+        dm_name: campaignData.dm_name
+      };
+      await axios.put(`${API}/campaigns/${campaign.id}`, updateData);
+      onCampaignUpdated();
+      onClose();
+    } catch (err) {
+      console.error("Error updating campaign:", err);
+      alert("Failed to update campaign");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Campaign Settings</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Campaign Name *</label>
+            <input
+              type="text"
+              value={campaignData.name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+            <textarea
+              value={campaignData.description}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white h-20"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">DM Name</label>
+            <input
+              type="text"
+              value={campaignData.dm_name}
+              onChange={(e) => setCampaignData(prev => ({ ...prev, dm_name: e.target.value }))}
+              className="w-full p-2 border border-gray-600 rounded bg-gray-700 text-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Manage Players</label>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Player Name"
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Character Name (optional)"
+                  value={newCharacterName}
+                  onChange={(e) => setNewCharacterName(e.target.value)}
+                  className="flex-1 p-2 border border-gray-600 rounded bg-gray-700 text-white"
+                />
+                <button
+                  type="button"
+                  onClick={addPlayer}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Add
+                </button>
+              </div>
+
+              {campaignData.players.map(player => (
+                <div key={player.id} className="flex justify-between items-center bg-gray-700 p-2 rounded">
+                  <span className="text-white">
+                    {player.name} {player.character_name && `(${player.character_name})`}
+                    <span className="text-gray-400 text-sm ml-2">• {player.status}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removePlayer(player.id)}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Danger Zone - Delete Campaign */}
+          <div className="border-t border-red-600 pt-4 mt-6">
+            <h4 className="text-red-400 font-bold mb-2">Danger Zone</h4>
+            <p className="text-gray-400 text-sm mb-3">
+              Deleting a campaign will remove it and all associated sessions permanently. This action cannot be undone.
+            </p>
+            <button
+              type="button"
+              onClick={() => onDeleteCampaign(campaign.id)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+            >
+              Delete Campaign
+            </button>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Save Changes
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const MainApp = ({ username, onLogout }) => {
   const [currentView, setCurrentView] = useState("sessions");
   const [sessions, setSessions] = useState([]);
   const [npcs, setNpcs] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sessionType, setSessionType] = useState("structured"); // "structured" or "free_form"
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [showCampaignSettings, setShowCampaignSettings] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [showCampaignDeleteConfirm, setShowCampaignDeleteConfirm] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState(null);
 
   useEffect(() => {
-    fetchSessions();
+    fetchCampaigns();
     fetchNpcs();
   }, []);
 
-  const fetchSessions = async () => {
+  useEffect(() => {
+    if (selectedCampaign) {
+      fetchCampaignSessions(selectedCampaign.id);
+    }
+  }, [selectedCampaign]);
+
+  const fetchCampaigns = async () => {
     try {
-      const response = await axios.get(`${API}/sessions`);
+      const response = await axios.get(`${API}/campaigns`);
+      setCampaigns(response.data);
+      
+      // Auto-select first campaign if none selected
+      if (response.data.length > 0 && !selectedCampaign) {
+        setSelectedCampaign(response.data[0]);
+      }
+    } catch (err) {
+      console.error("Error fetching campaigns:", err);
+    }
+  };
+
+  const fetchCampaignSessions = async (campaignId) => {
+    try {
+      const response = await axios.get(`${API}/campaigns/${campaignId}/sessions`);
       setSessions(response.data);
     } catch (err) {
-      console.error("Error fetching sessions:", err);
+      console.error("Error fetching campaign sessions:", err);
     }
   };
 
@@ -1280,6 +1685,28 @@ const MainApp = ({ username, onLogout }) => {
       setNpcs(response.data);
     } catch (err) {
       console.error("Error fetching NPCs:", err);
+    }
+  };
+
+  const createSession = async (sessionData) => {
+    if (!selectedCampaign) {
+      alert("Please select a campaign first");
+      return;
+    }
+
+    try {
+      const newSession = {
+        ...sessionData,
+        campaign_id: selectedCampaign.id
+      };
+
+      const response = await axios.post(`${API}/sessions`, newSession);
+      await fetchCampaignSessions(selectedCampaign.id); // Refresh campaign sessions
+      setSelectedSession(response.data);
+      setIsEditing(true);
+    } catch (err) {
+      console.error("Error creating session:", err);
+      alert("Failed to create session");
     }
   };
 
@@ -1307,19 +1734,113 @@ const MainApp = ({ username, onLogout }) => {
   const handleSessionSave = () => {
     setIsEditing(false);
     setSelectedSession(null);
-    fetchSessions();
+    if (selectedCampaign) {
+      fetchCampaignSessions(selectedCampaign.id);
+    }
     fetchNpcs(); // Refresh NPCs in case new ones were created
   };
 
   const handleDeleteSession = async (sessionId) => {
-    if (window.confirm("Are you sure you want to delete this session?")) {
+    // Instead of window.confirm, use custom modal
+    setSessionToDelete(sessionId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (sessionToDelete) {
       try {
-        await axios.delete(`${API}/sessions/${sessionId}`);
-        fetchSessions();
+        console.log("Deleting session:", sessionToDelete);
+        const response = await axios.delete(`${API}/sessions/${sessionToDelete}`);
+        console.log("Delete response:", response);
+        
+        // Refresh sessions list
+        if (selectedCampaign) {
+          await fetchCampaignSessions(selectedCampaign.id);
+        }
+        
+        // If the deleted session was currently selected, clear it
+        if (selectedSession?.id === sessionToDelete) {
+          setSelectedSession(null);
+          setIsEditing(false);
+        }
+        
+        // Close modal and reset state
+        setShowDeleteConfirm(false);
+        setSessionToDelete(null);
+        
+        console.log("Session deleted successfully!");
       } catch (err) {
         console.error("Error deleting session:", err);
+        alert(`Failed to delete session: ${err.response?.data?.detail || err.message}`);
+        setShowDeleteConfirm(false);
+        setSessionToDelete(null);
       }
     }
+  };
+
+  const cancelDeleteSession = () => {
+    setShowDeleteConfirm(false);
+    setSessionToDelete(null);
+  };
+
+  const handleDeleteCampaign = async (campaignId) => {
+    // Check if this campaign has any sessions
+    try {
+      const response = await axios.get(`${API}/campaigns/${campaignId}/sessions`);
+      setCampaignToDelete({ id: campaignId, sessionCount: response.data.length });
+      setShowCampaignDeleteConfirm(true);
+    } catch (err) {
+      console.error("Error checking campaign sessions:", err);
+      // Even if we can't check sessions, allow deletion
+      setCampaignToDelete({ id: campaignId, sessionCount: 0 });
+      setShowCampaignDeleteConfirm(true);
+    }
+  };
+
+  const confirmDeleteCampaign = async () => {
+    if (campaignToDelete) {
+      try {
+        console.log("Deleting campaign:", campaignToDelete.id);
+        const response = await axios.delete(`${API}/campaigns/${campaignToDelete.id}`);
+        console.log("Delete response:", response);
+        
+        // Refresh campaigns list
+        await fetchCampaigns();
+        
+        // If the deleted campaign was currently selected, clear it and select first available
+        if (selectedCampaign?.id === campaignToDelete.id) {
+          setSelectedSession(null);
+          setIsEditing(false);
+          setSelectedCampaign(null);
+          setSessions([]);
+          
+          // After campaigns refresh, auto-select first campaign if available
+          setTimeout(() => {
+            const updatedCampaigns = campaigns.filter(c => c.id !== campaignToDelete.id);
+            if (updatedCampaigns.length > 0) {
+              setSelectedCampaign(updatedCampaigns[0]);
+            }
+          }, 100);
+        }
+        
+        // Close modals
+        setShowCampaignDeleteConfirm(false);
+        setShowCampaignSettings(false);
+        setCampaignToDelete(null);
+        
+        console.log("Campaign deleted successfully!");
+      } catch (err) {
+        console.error("Error deleting campaign:", err);
+        alert(`Failed to delete campaign: ${err.response?.data?.detail || err.message}`);
+        setShowCampaignDeleteConfirm(false);
+        setCampaignToDelete(null);
+      }
+    }
+  };
+
+  const cancelDeleteCampaign = () => {
+    setShowCampaignDeleteConfirm(false);
+    setCampaignToDelete(null);
   };
 
   return (
@@ -1349,38 +1870,94 @@ const MainApp = ({ username, onLogout }) => {
             </button>
           </div>
         </div>
+        
+        {/* Campaign Selection Bar */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-gray-300 font-medium">Campaigns:</span>
+          {campaigns.map(campaign => (
+            <button
+              key={campaign.id}
+              onClick={() => setSelectedCampaign(campaign)}
+              className={`px-3 py-1 rounded text-sm ${
+                selectedCampaign?.id === campaign.id 
+                  ? "bg-indigo-600 text-white" 
+                  : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              }`}
+            >
+              {campaign.name}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowCampaignModal(true)}
+            className="px-3 py-1 rounded text-sm bg-green-600 hover:bg-green-700 text-white"
+          >
+            + New Campaign
+          </button>
+          {selectedCampaign && (
+            <button
+              onClick={() => setShowCampaignSettings(true)}
+              className="px-3 py-1 rounded text-sm bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              ⚙️ Settings
+            </button>
+          )}
+        </div>
       </nav>
 
-      <div className="container mx-auto p-6">
+      <div className="flex-1 p-6">
         {currentView === "sessions" && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Game Sessions</h2>
-              <div className="flex gap-2">
-                <select
-                  value={sessionType}
-                  onChange={(e) => setSessionType(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-                >
-                  <option value="structured">📋 Structured Template</option>
-                  <option value="free_form">📝 Free Form Notes</option>
-                </select>
-                <button
-                  onClick={() => {
-                    setSelectedSession(null);
-                    setIsEditing(true);
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                >
-                  New Session
-                </button>
+              <div>
+                <h2 className="text-xl font-bold text-white">Session Notes</h2>
+                {selectedCampaign && (
+                  <p className="text-gray-400 text-sm mt-1">
+                    Campaign: {selectedCampaign.name} • {sessions.length} sessions
+                  </p>
+                )}
               </div>
+              
+              {selectedCampaign ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedSession(null);
+                      setSessionType("structured");
+                      setIsEditing(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    📋 New Structured Session
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedSession(null);
+                      setSessionType("free_form");
+                      setIsEditing(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    📝 New Free Form Session
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-gray-400 mb-2">No campaign selected</p>
+                  <button
+                    onClick={() => setShowCampaignModal(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+                  >
+                    Create First Campaign
+                  </button>
+                </div>
+              )}
             </div>
 
             {isEditing ? (
               sessionType === "structured" ? (
                 <StructuredSessionEditor
                   session={selectedSession}
+                  selectedCampaign={selectedCampaign}
                   onSave={handleSessionSave}
                   onCancel={() => {
                     setIsEditing(false);
@@ -1390,6 +1967,7 @@ const MainApp = ({ username, onLogout }) => {
               ) : (
                 <FreeFormSessionEditor
                   session={selectedSession}
+                  selectedCampaign={selectedCampaign}
                   onSave={handleSessionSave}
                   onCancel={() => {
                     setIsEditing(false);
@@ -1598,6 +2176,96 @@ const MainApp = ({ username, onLogout }) => {
           </div>
         )}
       </div>
+      
+      {/* Campaign Creation Modal */}
+      {showCampaignModal && (
+        <CampaignCreationModal 
+          onClose={() => setShowCampaignModal(false)}
+          onCampaignCreated={fetchCampaigns}
+        />
+      )}
+      
+      {/* Campaign Settings Modal */}
+      {showCampaignSettings && selectedCampaign && (
+        <CampaignSettingsModal 
+          campaign={selectedCampaign}
+          onClose={() => setShowCampaignSettings(false)}
+          onCampaignUpdated={fetchCampaigns}
+          onDeleteCampaign={handleDeleteCampaign}
+        />
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Confirm Delete</h2>
+              <button onClick={cancelDeleteSession} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to delete this session? This action cannot be undone.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDeleteSession}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteSession}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Campaign Delete Confirmation Modal */}
+      {showCampaignDeleteConfirm && campaignToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-red-400">⚠️ Delete Campaign</h2>
+              <button onClick={cancelDeleteCampaign} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="text-gray-300 mb-6">
+              <p className="mb-3">
+                Are you sure you want to delete this campaign? This will:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-red-300">
+                <li>Permanently delete the campaign</li>
+                <li>Delete all {campaignToDelete.sessionCount} session(s) in this campaign</li>
+                <li>Remove all associated data</li>
+              </ul>
+              <p className="mt-3 font-bold text-red-400">
+                This action cannot be undone!
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDeleteCampaign}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteCampaign}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+              >
+                Delete Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -49,6 +49,38 @@ def json_serializer(obj):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
+# Campaign Models
+class CampaignPlayer(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    character_name: Optional[str] = ""
+    status: str = "Active"  # Active, Inactive, Left
+    notes: str = ""
+    joined_date: datetime = Field(default_factory=datetime.utcnow)
+
+class CampaignCreate(BaseModel):
+    name: str
+    description: str = ""
+    dm_name: str = ""
+    players: List[CampaignPlayer] = Field(default_factory=list)
+
+class CampaignUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    dm_name: Optional[str] = None
+    players: Optional[List[CampaignPlayer]] = None
+    is_active: Optional[bool] = None
+
+class Campaign(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str = ""
+    dm_name: str = ""
+    players: List[CampaignPlayer] = Field(default_factory=list)
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
 # Enhanced Pydantic Models for Structured Sessions
 class CombatEncounter(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -101,12 +133,14 @@ class SessionStructuredData(BaseModel):
 
 class SessionCreate(BaseModel):
     title: str
+    campaign_id: str  # Link session to a campaign
     content: str = ""  # Free-form content for backward compatibility
     structured_data: Optional[SessionStructuredData] = None
     session_type: str = "free_form"  # "free_form" or "structured"
 
 class SessionUpdate(BaseModel):
     title: Optional[str] = None
+    campaign_id: Optional[str] = None
     content: Optional[str] = None
     structured_data: Optional[SessionStructuredData] = None
     session_type: Optional[str] = None
@@ -114,6 +148,7 @@ class SessionUpdate(BaseModel):
 class Session(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
+    campaign_id: str  # Link session to a campaign
     content: str = ""
     structured_data: Optional[SessionStructuredData] = None
     session_type: str = "free_form"
@@ -255,8 +290,12 @@ async def create_session(session_data: SessionCreate, username: str = Depends(au
         raise HTTPException(status_code=500, detail=f"Error creating session: {str(e)}")
 
 @api_router.get("/sessions", response_model=List[Session])
-async def get_sessions(username: str = Depends(authenticate)):
-    sessions = await db.sessions.find().sort("created_at", -1).to_list(1000)
+async def get_sessions(campaign_id: Optional[str] = None, username: str = Depends(authenticate)):
+    """Get sessions, optionally filtered by campaign"""
+    if campaign_id:
+        sessions = await db.sessions.find({"campaign_id": campaign_id}).sort("created_at", -1).to_list(1000)
+    else:
+        sessions = await db.sessions.find().sort("created_at", -1).to_list(1000)
     return [Session(**session) for session in sessions]
 
 @api_router.get("/sessions/{session_id}", response_model=Session)
@@ -409,6 +448,214 @@ async def suggest_npcs(text_data: dict, username: str = Depends(authenticate)):
     text = text_data.get("text", "")
     suggested_names = await llm_service.extract_npcs_from_text(text)
     return {"suggested_npcs": suggested_names}
+
+# Campaign routes
+@api_router.post("/campaigns", response_model=Campaign)
+async def create_campaign(campaign_data: CampaignCreate, username: str = Depends(authenticate)):
+    """Create a new campaign (admin only)"""
+    try:
+        campaign_dict = campaign_data.dict()
+        campaign_obj = Campaign(**campaign_dict)
+        
+        # Convert to dict for MongoDB storage
+        storage_dict = campaign_obj.dict()
+        
+        await db.campaigns.insert_one(storage_dict)
+        return campaign_obj
+    except Exception as e:
+        logger.error(f"Error creating campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating campaign: {str(e)}")
+
+@api_router.get("/campaigns", response_model=List[Campaign])
+async def get_campaigns(username: str = Depends(authenticate)):
+    """Get all campaigns"""
+    campaigns = await db.campaigns.find({"is_active": True}).sort("created_at", -1).to_list(1000)
+    return [Campaign(**campaign) for campaign in campaigns]
+
+@api_router.get("/campaigns/{campaign_id}", response_model=Campaign)
+async def get_campaign(campaign_id: str, username: str = Depends(authenticate)):
+    """Get a specific campaign"""
+    campaign = await db.campaigns.find_one({"id": campaign_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return Campaign(**campaign)
+
+@api_router.put("/campaigns/{campaign_id}", response_model=Campaign)
+async def update_campaign(campaign_id: str, campaign_data: CampaignUpdate, username: str = Depends(authenticate)):
+    """Update a campaign (admin only)"""
+    try:
+        update_data = {k: v for k, v in campaign_data.dict().items() if v is not None}
+        update_data["updated_at"] = datetime.utcnow()
+        
+        result = await db.campaigns.update_one(
+            {"id": campaign_id}, 
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        updated_campaign = await db.campaigns.find_one({"id": campaign_id})
+        return Campaign(**updated_campaign)
+    except Exception as e:
+        logger.error(f"Error updating campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating campaign: {str(e)}")
+
+@api_router.delete("/campaigns/{campaign_id}")
+async def delete_campaign(campaign_id: str, username: str = Depends(authenticate)):
+    """Soft delete a campaign (admin only)"""
+    result = await db.campaigns.update_one(
+        {"id": campaign_id}, 
+        {"$set": {"is_active": False, "updated_at": datetime.utcnow()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return {"message": "Campaign deleted successfully"}
+
+@api_router.get("/campaigns/{campaign_id}/sessions", response_model=List[Session])
+async def get_campaign_sessions(campaign_id: str, username: str = Depends(authenticate)):
+    """Get all sessions for a specific campaign"""
+    sessions = await db.sessions.find({"campaign_id": campaign_id}).sort("created_at", -1).to_list(1000)
+    return [Session(**session) for session in sessions]
+
+@api_router.post("/campaigns/{campaign_id}/players")
+async def add_campaign_player(campaign_id: str, player_data: CampaignPlayer, username: str = Depends(authenticate)):
+    """Add a player to a campaign"""
+    try:
+        # Get the campaign
+        campaign = await db.campaigns.find_one({"id": campaign_id})
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        campaign_obj = Campaign(**campaign)
+        
+        # Check if player name already exists
+        existing_names = [p.name for p in campaign_obj.players]
+        if player_data.name in existing_names:
+            raise HTTPException(status_code=400, detail="Player name already exists in this campaign")
+        
+        # Add the new player
+        campaign_obj.players.append(player_data)
+        campaign_obj.updated_at = datetime.utcnow()
+        
+        # Update in database
+        await db.campaigns.update_one(
+            {"id": campaign_id},
+            {"$set": campaign_obj.dict()}
+        )
+        
+        return {"message": "Player added successfully", "player": player_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding player: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error adding player: {str(e)}")
+
+@api_router.put("/campaigns/{campaign_id}/players/{player_id}")
+async def update_campaign_player(campaign_id: str, player_id: str, player_data: CampaignPlayer, username: str = Depends(authenticate)):
+    """Update a player in a campaign"""
+    try:
+        campaign = await db.campaigns.find_one({"id": campaign_id})
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        campaign_obj = Campaign(**campaign)
+        
+        # Find and update the player
+        player_found = False
+        for i, player in enumerate(campaign_obj.players):
+            if player.id == player_id:
+                campaign_obj.players[i] = player_data
+                player_found = True
+                break
+        
+        if not player_found:
+            raise HTTPException(status_code=404, detail="Player not found in campaign")
+        
+        campaign_obj.updated_at = datetime.utcnow()
+        
+        # Update in database
+        await db.campaigns.update_one(
+            {"id": campaign_id},
+            {"$set": campaign_obj.dict()}
+        )
+        
+        return {"message": "Player updated successfully", "player": player_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating player: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating player: {str(e)}")
+
+@api_router.delete("/campaigns/{campaign_id}/players/{player_id}")
+async def remove_campaign_player(campaign_id: str, player_id: str, username: str = Depends(authenticate)):
+    """Remove a player from a campaign"""
+    try:
+        campaign = await db.campaigns.find_one({"id": campaign_id})
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        
+        campaign_obj = Campaign(**campaign)
+        
+        # Find and remove the player
+        original_count = len(campaign_obj.players)
+        campaign_obj.players = [p for p in campaign_obj.players if p.id != player_id]
+        
+        if len(campaign_obj.players) == original_count:
+            raise HTTPException(status_code=404, detail="Player not found in campaign")
+        
+        campaign_obj.updated_at = datetime.utcnow()
+        
+        # Update in database
+        await db.campaigns.update_one(
+            {"id": campaign_id},
+            {"$set": campaign_obj.dict()}
+        )
+        
+        return {"message": "Player removed successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing player: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error removing player: {str(e)}")
+
+# Initialize default campaign for existing data
+@api_router.post("/initialize-default-campaign")
+async def initialize_default_campaign(username: str = Depends(authenticate)):
+    """Initialize a default campaign for existing sessions (admin only)"""
+    try:
+        # Check if default campaign already exists
+        existing_default = await db.campaigns.find_one({"name": "Default Campaign"})
+        if existing_default:
+            return {"message": "Default campaign already exists", "campaign_id": existing_default["id"]}
+        
+        # Create default campaign
+        default_campaign = Campaign(
+            name="Default Campaign",
+            description="Default campaign for existing sessions",
+            dm_name="Game Master",
+            players=[]
+        )
+        
+        await db.campaigns.insert_one(default_campaign.dict())
+        
+        # Update all existing sessions without campaign_id
+        sessions_without_campaign = await db.sessions.find({"campaign_id": {"$exists": False}}).to_list(None)
+        
+        if sessions_without_campaign:
+            await db.sessions.update_many(
+                {"campaign_id": {"$exists": False}},
+                {"$set": {"campaign_id": default_campaign.id}}
+            )
+        
+        return {
+            "message": "Default campaign created and existing sessions updated",
+            "campaign_id": default_campaign.id,
+            "sessions_updated": len(sessions_without_campaign)
+        }
+    except Exception as e:
+        logger.error(f"Error initializing default campaign: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error initializing default campaign: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)

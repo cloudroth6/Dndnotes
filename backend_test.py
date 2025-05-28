@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 class DDNoteAPITester:
-    def __init__(self, base_url: str = "https://18b4df16-5a9e-4b05-bd8d-feae6b4f3299.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://75d5e6ec-ba95-44b9-8cbc-03cdfd7b84d5.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.auth = ("admin", "admin")
@@ -19,6 +19,8 @@ class DDNoteAPITester:
         self.tests_passed = 0
         self.session_id = None
         self.npc_id = None
+        self.campaign_id = None
+        self.player_id = None
 
     def log_test(self, name: str, success: bool, details: str = ""):
         """Log test results"""
@@ -413,6 +415,173 @@ class DDNoteAPITester:
                 return self.log_test("Cleanup Structured Session", True, "- Session deleted")
             return self.log_test("Cleanup Structured Session", False, f"- Response: {data}")
         return self.log_test("Cleanup Structured Session", True, "- No session to clean up")
+        
+    # Campaign Management Tests
+    def test_create_campaign(self):
+        """Test creating a new campaign"""
+        campaign_data = {
+            "name": "Test Campaign: The Dragon's Hoard",
+            "description": "A campaign about hunting for legendary dragon treasures",
+            "dm_name": "Test DM",
+            "players": [
+                {
+                    "name": "Player One",
+                    "character_name": "Thorgar the Brave",
+                    "status": "Active",
+                    "notes": "Dwarf Fighter"
+                }
+            ]
+        }
+        success, data = self.make_request('POST', 'campaigns', campaign_data, 200)
+        if success and 'id' in data:
+            self.campaign_id = data['id']
+            if 'players' in data and len(data['players']) > 0:
+                self.player_id = data['players'][0]['id']
+            return self.log_test("Create Campaign", True, f"- ID: {self.campaign_id}")
+        return self.log_test("Create Campaign", False, f"- Response: {data}")
+    
+    def test_get_campaigns(self):
+        """Test retrieving all campaigns"""
+        success, data = self.make_request('GET', 'campaigns')
+        if success and isinstance(data, list):
+            return self.log_test("Get Campaigns", True, f"- Count: {len(data)}")
+        return self.log_test("Get Campaigns", False, f"- Response: {data}")
+    
+    def test_get_campaign_by_id(self):
+        """Test retrieving a specific campaign"""
+        if not self.campaign_id:
+            return self.log_test("Get Campaign by ID", False, "- No campaign ID available")
+        
+        success, data = self.make_request('GET', f'campaigns/{self.campaign_id}')
+        if success and data.get('id') == self.campaign_id:
+            return self.log_test("Get Campaign by ID", True, f"- Name: {data.get('name', 'No name')}")
+        return self.log_test("Get Campaign by ID", False, f"- Response: {data}")
+    
+    def test_update_campaign(self):
+        """Test updating a campaign"""
+        if not self.campaign_id:
+            return self.log_test("Update Campaign", False, "- No campaign ID available")
+        
+        update_data = {
+            "description": "Updated description: A campaign about hunting for legendary dragon treasures and ancient artifacts",
+            "dm_name": "Updated DM Name"
+        }
+        success, data = self.make_request('PUT', f'campaigns/{self.campaign_id}', update_data)
+        if success and 'updated_at' in data:
+            return self.log_test("Update Campaign", True, f"- Updated at: {data.get('updated_at')}")
+        return self.log_test("Update Campaign", False, f"- Response: {data}")
+    
+    def test_add_player_to_campaign(self):
+        """Test adding a player to a campaign"""
+        if not self.campaign_id:
+            return self.log_test("Add Player to Campaign", False, "- No campaign ID available")
+        
+        player_data = {
+            "name": "Player Two",
+            "character_name": "Elara the Wise",
+            "status": "Active",
+            "notes": "Elf Wizard"
+        }
+        success, data = self.make_request('POST', f'campaigns/{self.campaign_id}/players', player_data)
+        if success and 'player' in data and 'id' in data['player']:
+            new_player_id = data['player']['id']
+            return self.log_test("Add Player to Campaign", True, f"- Player ID: {new_player_id}")
+        return self.log_test("Add Player to Campaign", False, f"- Response: {data}")
+    
+    def test_update_player_in_campaign(self):
+        """Test updating a player in a campaign"""
+        if not self.campaign_id or not self.player_id:
+            return self.log_test("Update Player in Campaign", False, "- No campaign ID or player ID available")
+        
+        player_data = {
+            "id": self.player_id,
+            "name": "Player One",
+            "character_name": "Thorgar the Mighty",  # Changed from "Brave" to "Mighty"
+            "status": "Active",
+            "notes": "Dwarf Fighter - Level 5"  # Added level info
+        }
+        success, data = self.make_request('PUT', f'campaigns/{self.campaign_id}/players/{self.player_id}', player_data)
+        if success and 'message' in data and 'player' in data:
+            return self.log_test("Update Player in Campaign", True, f"- {data.get('message')}")
+        return self.log_test("Update Player in Campaign", False, f"- Response: {data}")
+    
+    def test_remove_player_from_campaign(self):
+        """Test removing a player from a campaign"""
+        if not self.campaign_id or not self.player_id:
+            return self.log_test("Remove Player from Campaign", False, "- No campaign ID or player ID available")
+        
+        success, data = self.make_request('DELETE', f'campaigns/{self.campaign_id}/players/{self.player_id}')
+        if success and 'message' in data:
+            return self.log_test("Remove Player from Campaign", True, f"- {data.get('message')}")
+        return self.log_test("Remove Player from Campaign", False, f"- Response: {data}")
+    
+    def test_get_campaign_sessions(self):
+        """Test retrieving sessions for a specific campaign"""
+        if not self.campaign_id:
+            return self.log_test("Get Campaign Sessions", False, "- No campaign ID available")
+        
+        success, data = self.make_request('GET', f'campaigns/{self.campaign_id}/sessions')
+        if success and isinstance(data, list):
+            return self.log_test("Get Campaign Sessions", True, f"- Session Count: {len(data)}")
+        return self.log_test("Get Campaign Sessions", False, f"- Response: {data}")
+    
+    def test_create_session_with_campaign(self):
+        """Test creating a session linked to a campaign"""
+        if not self.campaign_id:
+            return self.log_test("Create Session with Campaign", False, "- No campaign ID available")
+        
+        session_data = {
+            "title": "Campaign Test Session",
+            "campaign_id": self.campaign_id,
+            "content": "This is a test session for the campaign integration test."
+        }
+        success, data = self.make_request('POST', 'sessions', session_data, 200)
+        if success and 'id' in data:
+            self.campaign_session_id = data['id']
+            campaign_id_matches = data.get('campaign_id') == self.campaign_id
+            return self.log_test("Create Session with Campaign", campaign_id_matches, 
+                               f"- Session ID: {self.campaign_session_id}, Campaign Link: {campaign_id_matches}")
+        return self.log_test("Create Session with Campaign", False, f"- Response: {data}")
+    
+    def test_get_sessions_by_campaign(self):
+        """Test retrieving sessions filtered by campaign_id"""
+        if not self.campaign_id:
+            return self.log_test("Get Sessions by Campaign", False, "- No campaign ID available")
+        
+        success, data = self.make_request('GET', f'sessions?campaign_id={self.campaign_id}')
+        if success and isinstance(data, list):
+            all_match_campaign = all(session.get('campaign_id') == self.campaign_id for session in data)
+            return self.log_test("Get Sessions by Campaign", all_match_campaign, 
+                               f"- Session Count: {len(data)}, All Match Campaign: {all_match_campaign}")
+        return self.log_test("Get Sessions by Campaign", False, f"- Response: {data}")
+    
+    def test_initialize_default_campaign(self):
+        """Test initializing a default campaign for existing sessions"""
+        success, data = self.make_request('POST', 'initialize-default-campaign')
+        if success and 'campaign_id' in data:
+            default_campaign_id = data.get('campaign_id')
+            sessions_updated = data.get('sessions_updated', 0)
+            return self.log_test("Initialize Default Campaign", True, 
+                               f"- Default Campaign ID: {default_campaign_id}, Sessions Updated: {sessions_updated}")
+        return self.log_test("Initialize Default Campaign", False, f"- Response: {data}")
+    
+    def cleanup_campaign_session(self):
+        """Clean up the campaign session created for testing"""
+        if hasattr(self, 'campaign_session_id') and self.campaign_session_id:
+            success, data = self.make_request('DELETE', f'sessions/{self.campaign_session_id}', expected_status=200)
+            if success:
+                return self.log_test("Cleanup Campaign Session", True, "- Session deleted")
+            return self.log_test("Cleanup Campaign Session", False, f"- Response: {data}")
+        return self.log_test("Cleanup Campaign Session", True, "- No campaign session to clean up")
+    
+    def cleanup_campaign(self):
+        """Clean up the campaign created for testing"""
+        if self.campaign_id:
+            success, data = self.make_request('DELETE', f'campaigns/{self.campaign_id}', expected_status=200)
+            if success:
+                return self.log_test("Cleanup Campaign", True, "- Campaign deleted")
+            return self.log_test("Cleanup Campaign", False, f"- Response: {data}")
+        return self.log_test("Cleanup Campaign", True, "- No campaign to clean up")
 
     def run_all_tests(self):
         """Run all API tests in sequence"""
@@ -448,8 +617,30 @@ class DDNoteAPITester:
         # Advanced functionality tests
         self.test_extract_npc()
         self.test_suggest_npcs()
+        
+        # NEW: Campaign Management Tests
+        print("\n🆕 Testing Campaign Management Features:")
+        self.test_create_campaign()
+        self.test_get_campaigns()
+        self.test_get_campaign_by_id()
+        self.test_update_campaign()
+        
+        # Player Management Tests
+        self.test_add_player_to_campaign()
+        self.test_update_player_in_campaign()
+        self.test_remove_player_from_campaign()
+        
+        # Session-Campaign Integration Tests
+        self.test_create_session_with_campaign()
+        self.test_get_campaign_sessions()
+        self.test_get_sessions_by_campaign()
+        
+        # Default Campaign Initialization
+        self.test_initialize_default_campaign()
 
         # Cleanup tests
+        self.cleanup_campaign_session()
+        self.cleanup_campaign()
         self.test_delete_npc()
         self.test_delete_session()
         self.cleanup_structured_session()
