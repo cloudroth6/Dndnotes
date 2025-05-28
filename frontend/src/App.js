@@ -1443,7 +1443,7 @@ const CampaignCreationModal = ({ onClose, onCampaignCreated }) => {
 };
 
 // Campaign Settings Modal Component
-const CampaignSettingsModal = ({ campaign, onClose, onCampaignUpdated }) => {
+const CampaignSettingsModal = ({ campaign, onClose, onCampaignUpdated, onDeleteCampaign }) => {
   const [campaignData, setCampaignData] = useState({
     name: campaign.name,
     description: campaign.description || '',
