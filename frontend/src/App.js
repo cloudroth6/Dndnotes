@@ -1627,6 +1627,8 @@ const MainApp = ({ username, onLogout }) => {
   const [showCampaignSettings, setShowCampaignSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [showCampaignDeleteConfirm, setShowCampaignDeleteConfirm] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState(null);
 
   useEffect(() => {
     fetchCampaigns();
