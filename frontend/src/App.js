@@ -1363,7 +1363,9 @@ const MainApp = ({ username, onLogout }) => {
     if (window.confirm("Are you sure you want to delete this session?")) {
       try {
         await axios.delete(`${API}/sessions/${sessionId}`);
-        fetchSessions();
+        if (selectedCampaign) {
+          fetchCampaignSessions(selectedCampaign.id);
+        }
       } catch (err) {
         console.error("Error deleting session:", err);
       }
