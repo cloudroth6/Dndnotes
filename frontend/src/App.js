@@ -2116,6 +2116,37 @@ const MainApp = ({ username, onLogout }) => {
           onCampaignUpdated={fetchCampaigns}
         />
       )}
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Confirm Delete</h2>
+              <button onClick={cancelDeleteSession} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <p className="text-gray-300 mb-6">
+              Are you sure you want to delete this session? This action cannot be undone.
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDeleteSession}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteSession}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
