@@ -1035,6 +1035,7 @@ const FreeFormSessionEditor = ({ session, onSave, onCancel, selectedCampaign }) 
       const sessionData = {
         title,
         content,
+        campaign_id: session?.campaign_id || selectedCampaign?.id || "",
         session_type: "free_form"
       };
       
