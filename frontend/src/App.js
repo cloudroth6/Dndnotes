@@ -1593,6 +1593,21 @@ const CampaignSettingsModal = ({ campaign, onClose, onCampaignUpdated, onDeleteC
             </div>
           </div>
 
+          {/* Danger Zone - Delete Campaign */}
+          <div className="border-t border-red-600 pt-4 mt-6">
+            <h4 className="text-red-400 font-bold mb-2">Danger Zone</h4>
+            <p className="text-gray-400 text-sm mb-3">
+              Deleting a campaign will remove it and all associated sessions permanently. This action cannot be undone.
+            </p>
+            <button
+              type="button"
+              onClick={() => onDeleteCampaign(campaign.id)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+            >
+              Delete Campaign
+            </button>
+          </div>
+
           <div className="flex gap-2 pt-4">
             <button
               type="submit"
