@@ -1858,6 +1858,7 @@ const MainApp = ({ username, onLogout }) => {
               ) : (
                 <FreeFormSessionEditor
                   session={selectedSession}
+                  selectedCampaign={selectedCampaign}
                   onSave={handleSessionSave}
                   onCancel={() => {
                     setIsEditing(false);
