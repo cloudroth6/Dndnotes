@@ -133,12 +133,14 @@ class SessionStructuredData(BaseModel):
 
 class SessionCreate(BaseModel):
     title: str
+    campaign_id: str  # Link session to a campaign
     content: str = ""  # Free-form content for backward compatibility
     structured_data: Optional[SessionStructuredData] = None
     session_type: str = "free_form"  # "free_form" or "structured"
 
 class SessionUpdate(BaseModel):
     title: Optional[str] = None
+    campaign_id: Optional[str] = None
     content: Optional[str] = None
     structured_data: Optional[SessionStructuredData] = None
     session_type: Optional[str] = None
@@ -146,6 +148,7 @@ class SessionUpdate(BaseModel):
 class Session(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
+    campaign_id: str  # Link session to a campaign
     content: str = ""
     structured_data: Optional[SessionStructuredData] = None
     session_type: str = "free_form"
