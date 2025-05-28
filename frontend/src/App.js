@@ -1624,7 +1624,8 @@ const MainApp = ({ username, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [sessionType, setSessionType] = useState("structured"); // "structured" or "free_form"
   const [showCampaignModal, setShowCampaignModal] = useState(false);
-  const [showCampaignSettings, setShowCampaignSettings] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
 
   useEffect(() => {
     fetchCampaigns();
