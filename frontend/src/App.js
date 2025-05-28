@@ -236,7 +236,7 @@ const RichTextEditor = ({ content, onChange }) => {
   );
 };
 
-const StructuredSessionEditor = ({ session, onSave, onCancel }) => {
+const StructuredSessionEditor = ({ session, onSave, onCancel, selectedCampaign }) => {
   const [sessionData, setSessionData] = useState({
     title: session?.title || "",
     session_type: "structured",
