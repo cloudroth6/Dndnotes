@@ -1262,12 +1262,41 @@ const MainApp = ({ username, onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [sessionType, setSessionType] = useState("structured"); // "structured" or "free_form"
   const [showCampaignModal, setShowCampaignModal] = useState(false);
-  const [showCampaignSettings, setShowCampaignSettings] = useState(false)
+  const [showCampaignSettings, setShowCampaignSettings] = useState(false);
 
   useEffect(() => {
-    fetchSessions();
+    fetchCampaigns();
     fetchNpcs();
   }, []);
+
+  useEffect(() => {
+    if (selectedCampaign) {
+      fetchCampaignSessions(selectedCampaign.id);
+    }
+  }, [selectedCampaign]);
+
+  const fetchCampaigns = async () => {
+    try {
+      const response = await axios.get(`${API}/campaigns`);
+      setCampaigns(response.data);
+      
+      // Auto-select first campaign if none selected
+      if (response.data.length > 0 && !selectedCampaign) {
+        setSelectedCampaign(response.data[0]);
+      }
+    } catch (err) {
+      console.error("Error fetching campaigns:", err);
+    }
+  };
+
+  const fetchCampaignSessions = async (campaignId) => {
+    try {
+      const response = await axios.get(`${API}/campaigns/${campaignId}/sessions`);
+      setSessions(response.data);
+    } catch (err) {
+      console.error("Error fetching campaign sessions:", err);
+    }
+  };
 
   const fetchSessions = async () => {
     try {
