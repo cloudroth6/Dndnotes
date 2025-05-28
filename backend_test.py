@@ -19,6 +19,8 @@ class DDNoteAPITester:
         self.tests_passed = 0
         self.session_id = None
         self.npc_id = None
+        self.campaign_id = None
+        self.player_id = None
 
     def log_test(self, name: str, success: bool, details: str = ""):
         """Log test results"""
