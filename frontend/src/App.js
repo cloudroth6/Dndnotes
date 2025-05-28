@@ -5,12 +5,6 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Debug logging
-console.log("Environment check:");
-console.log("REACT_APP_BACKEND_URL:", process.env.REACT_APP_BACKEND_URL);
-console.log("BACKEND_URL:", BACKEND_URL);
-console.log("API:", API);
-
 // Set up axios defaults for basic auth
 let authConfigured = false;
 
