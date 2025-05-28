@@ -1680,6 +1680,23 @@ const MainApp = ({ username, onLogout }) => {
           </div>
         )}
       </div>
+      
+      {/* Campaign Creation Modal */}
+      {showCampaignModal && (
+        <CampaignCreationModal 
+          onClose={() => setShowCampaignModal(false)}
+          onCampaignCreated={fetchCampaigns}
+        />
+      )}
+      
+      {/* Campaign Settings Modal */}
+      {showCampaignSettings && selectedCampaign && (
+        <CampaignSettingsModal 
+          campaign={selectedCampaign}
+          onClose={() => setShowCampaignSettings(false)}
+          onCampaignUpdated={fetchCampaigns}
+        />
+      )}
     </div>
   );
 };
