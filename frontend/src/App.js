@@ -2225,6 +2225,47 @@ const MainApp = ({ username, onLogout }) => {
           </div>
         </div>
       )}
+      
+      {/* Campaign Delete Confirmation Modal */}
+      {showCampaignDeleteConfirm && campaignToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-red-400">⚠️ Delete Campaign</h2>
+              <button onClick={cancelDeleteCampaign} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="text-gray-300 mb-6">
+              <p className="mb-3">
+                Are you sure you want to delete this campaign? This will:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-red-300">
+                <li>Permanently delete the campaign</li>
+                <li>Delete all {campaignToDelete.sessionCount} session(s) in this campaign</li>
+                <li>Remove all associated data</li>
+              </ul>
+              <p className="mt-3 font-bold text-red-400">
+                This action cannot be undone!
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDeleteCampaign}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteCampaign}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+              >
+                Delete Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
