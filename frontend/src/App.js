@@ -1256,9 +1256,13 @@ const MainApp = ({ username, onLogout }) => {
   const [currentView, setCurrentView] = useState("sessions");
   const [sessions, setSessions] = useState([]);
   const [npcs, setNpcs] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [sessionType, setSessionType] = useState("structured"); // "structured" or "free_form"
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [showCampaignSettings, setShowCampaignSettings] = useState(false)
 
   useEffect(() => {
     fetchSessions();
