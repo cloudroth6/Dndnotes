@@ -290,8 +290,12 @@ async def create_session(session_data: SessionCreate, username: str = Depends(au
         raise HTTPException(status_code=500, detail=f"Error creating session: {str(e)}")
 
 @api_router.get("/sessions", response_model=List[Session])
-async def get_sessions(username: str = Depends(authenticate)):
-    sessions = await db.sessions.find().sort("created_at", -1).to_list(1000)
+async def get_sessions(campaign_id: Optional[str] = None, username: str = Depends(authenticate)):
+    """Get sessions, optionally filtered by campaign"""
+    if campaign_id:
+        sessions = await db.sessions.find({"campaign_id": campaign_id}).sort("created_at", -1).to_list(1000)
+    else:
+        sessions = await db.sessions.find().sort("created_at", -1).to_list(1000)
     return [Session(**session) for session in sessions]
 
 @api_router.get("/sessions/{session_id}", response_model=Session)
