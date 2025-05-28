@@ -1724,10 +1724,16 @@ const MainApp = ({ username, onLogout }) => {
   };
 
   const handleDeleteSession = async (sessionId) => {
-    if (window.confirm("Are you sure you want to delete this session?")) {
+    // Instead of window.confirm, use custom modal
+    setSessionToDelete(sessionId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (sessionToDelete) {
       try {
-        console.log("Deleting session:", sessionId);
-        const response = await axios.delete(`${API}/sessions/${sessionId}`);
+        console.log("Deleting session:", sessionToDelete);
+        const response = await axios.delete(`${API}/sessions/${sessionToDelete}`);
         console.log("Delete response:", response);
         
         // Refresh sessions list
@@ -1736,17 +1742,28 @@ const MainApp = ({ username, onLogout }) => {
         }
         
         // If the deleted session was currently selected, clear it
-        if (selectedSession?.id === sessionId) {
+        if (selectedSession?.id === sessionToDelete) {
           setSelectedSession(null);
           setIsEditing(false);
         }
         
-        alert("Session deleted successfully!");
+        // Close modal and reset state
+        setShowDeleteConfirm(false);
+        setSessionToDelete(null);
+        
+        console.log("Session deleted successfully!");
       } catch (err) {
         console.error("Error deleting session:", err);
         alert(`Failed to delete session: ${err.response?.data?.detail || err.message}`);
+        setShowDeleteConfirm(false);
+        setSessionToDelete(null);
       }
     }
+  };
+
+  const cancelDeleteSession = () => {
+    setShowDeleteConfirm(false);
+    setSessionToDelete(null);
   };
 
   return (
