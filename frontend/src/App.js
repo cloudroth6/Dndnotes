@@ -1399,6 +1399,38 @@ const MainApp = ({ username, onLogout }) => {
             </button>
           </div>
         </div>
+        
+        {/* Campaign Selection Bar */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-gray-300 font-medium">Campaigns:</span>
+          {campaigns.map(campaign => (
+            <button
+              key={campaign.id}
+              onClick={() => setSelectedCampaign(campaign)}
+              className={`px-3 py-1 rounded text-sm ${
+                selectedCampaign?.id === campaign.id 
+                  ? "bg-indigo-600 text-white" 
+                  : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+              }`}
+            >
+              {campaign.name}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowCampaignModal(true)}
+            className="px-3 py-1 rounded text-sm bg-green-600 hover:bg-green-700 text-white"
+          >
+            + New Campaign
+          </button>
+          {selectedCampaign && (
+            <button
+              onClick={() => setShowCampaignSettings(true)}
+              className="px-3 py-1 rounded text-sm bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              ⚙️ Settings
+            </button>
+          )}
+        </div>
       </nav>
 
       <div className="container mx-auto p-6">
