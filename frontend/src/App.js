@@ -1724,12 +1724,25 @@ const MainApp = ({ username, onLogout }) => {
   const handleDeleteSession = async (sessionId) => {
     if (window.confirm("Are you sure you want to delete this session?")) {
       try {
-        await axios.delete(`${API}/sessions/${sessionId}`);
+        console.log("Deleting session:", sessionId);
+        const response = await axios.delete(`${API}/sessions/${sessionId}`);
+        console.log("Delete response:", response);
+        
+        // Refresh sessions list
         if (selectedCampaign) {
-          fetchCampaignSessions(selectedCampaign.id);
+          await fetchCampaignSessions(selectedCampaign.id);
         }
+        
+        // If the deleted session was currently selected, clear it
+        if (selectedSession?.id === sessionId) {
+          setSelectedSession(null);
+          setIsEditing(false);
+        }
+        
+        alert("Session deleted successfully!");
       } catch (err) {
         console.error("Error deleting session:", err);
+        alert(`Failed to delete session: ${err.response?.data?.detail || err.message}`);
       }
     }
   };
