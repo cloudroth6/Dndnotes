@@ -49,6 +49,38 @@ def json_serializer(obj):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
+# Campaign Models
+class CampaignPlayer(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    character_name: Optional[str] = ""
+    status: str = "Active"  # Active, Inactive, Left
+    notes: str = ""
+    joined_date: datetime = Field(default_factory=datetime.utcnow)
+
+class CampaignCreate(BaseModel):
+    name: str
+    description: str = ""
+    dm_name: str = ""
+    players: List[CampaignPlayer] = Field(default_factory=list)
+
+class CampaignUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    dm_name: Optional[str] = None
+    players: Optional[List[CampaignPlayer]] = None
+    is_active: Optional[bool] = None
+
+class Campaign(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: str = ""
+    dm_name: str = ""
+    players: List[CampaignPlayer] = Field(default_factory=list)
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
 # Enhanced Pydantic Models for Structured Sessions
 class CombatEncounter(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
