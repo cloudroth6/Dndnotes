@@ -617,8 +617,30 @@ class DDNoteAPITester:
         # Advanced functionality tests
         self.test_extract_npc()
         self.test_suggest_npcs()
+        
+        # NEW: Campaign Management Tests
+        print("\n🆕 Testing Campaign Management Features:")
+        self.test_create_campaign()
+        self.test_get_campaigns()
+        self.test_get_campaign_by_id()
+        self.test_update_campaign()
+        
+        # Player Management Tests
+        self.test_add_player_to_campaign()
+        self.test_update_player_in_campaign()
+        self.test_remove_player_from_campaign()
+        
+        # Session-Campaign Integration Tests
+        self.test_create_session_with_campaign()
+        self.test_get_campaign_sessions()
+        self.test_get_sessions_by_campaign()
+        
+        # Default Campaign Initialization
+        self.test_initialize_default_campaign()
 
         # Cleanup tests
+        self.cleanup_campaign_session()
+        self.cleanup_campaign()
         self.test_delete_npc()
         self.test_delete_session()
         self.cleanup_structured_session()
