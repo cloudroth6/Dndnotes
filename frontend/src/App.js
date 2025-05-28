@@ -1793,30 +1793,53 @@ const MainApp = ({ username, onLogout }) => {
         </div>
       </nav>
 
-      <div className="container mx-auto p-6">
+      <div className="flex-1 p-6">
         {currentView === "sessions" && (
           <div>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Game Sessions</h2>
-              <div className="flex gap-2">
-                <select
-                  value={sessionType}
-                  onChange={(e) => setSessionType(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-                >
-                  <option value="structured">📋 Structured Template</option>
-                  <option value="free_form">📝 Free Form Notes</option>
-                </select>
-                <button
-                  onClick={() => {
-                    setSelectedSession(null);
-                    setIsEditing(true);
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                >
-                  New Session
-                </button>
+              <div>
+                <h2 className="text-xl font-bold text-white">Session Notes</h2>
+                {selectedCampaign && (
+                  <p className="text-gray-400 text-sm mt-1">
+                    Campaign: {selectedCampaign.name} • {sessions.length} sessions
+                  </p>
+                )}
               </div>
+              
+              {selectedCampaign ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedSession(null);
+                      setSessionType("structured");
+                      setIsEditing(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    📋 New Structured Session
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedSession(null);
+                      setSessionType("free_form");
+                      setIsEditing(true);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    📝 New Free Form Session
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-gray-400 mb-2">No campaign selected</p>
+                  <button
+                    onClick={() => setShowCampaignModal(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
+                  >
+                    Create First Campaign
+                  </button>
+                </div>
+              )}
             </div>
 
             {isEditing ? (
