@@ -1353,7 +1353,9 @@ const MainApp = ({ username, onLogout }) => {
   const handleSessionSave = () => {
     setIsEditing(false);
     setSelectedSession(null);
-    fetchSessions();
+    if (selectedCampaign) {
+      fetchCampaignSessions(selectedCampaign.id);
+    }
     fetchNpcs(); // Refresh NPCs in case new ones were created
   };
 
