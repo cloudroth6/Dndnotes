@@ -1823,6 +1823,7 @@ const MainApp = ({ username, onLogout }) => {
               sessionType === "structured" ? (
                 <StructuredSessionEditor
                   session={selectedSession}
+                  selectedCampaign={selectedCampaign}
                   onSave={handleSessionSave}
                   onCancel={() => {
                     setIsEditing(false);
